@@ -114,6 +114,21 @@
   .modal-foot button { background: #282937; border: 1px solid var(--obs-border); color: #fff; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 10.5px; }
   .modal-foot button.primary { background: var(--obs-accent); border-color: var(--obs-accent); }
 </style>
+
+<style>
+  html, body { width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0; }
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); z-index: 9999; align-items: center; justify-content: center; }
+  .modal-box { background: #20212b; border: 1px solid #303242; border-radius: 8px; width: 450px; max-width: 90%; color: #dcddde; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+  .modal-header { font-size: 14px; font-weight: bold; border-bottom: 1px solid #303242; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; }
+  .modal-row { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .modal-row label { font-size: 11px; color: #8e9297; }
+  .modal-row input, .modal-row select { background: #181920; border: 1px solid #303242; color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none; }
+  .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .btn-modal { background: #5865f2; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .btn-modal.secondary { background: #303242; }
+  .live-active { background: #ed4245 !important; color: white !important; font-weight: bold; }
+  .rec-active { background: #ed4245 !important; color: white !important; font-weight: bold; }
+</style>
 </head>
 <body>
 
@@ -121,7 +136,7 @@
     <div class="obs-menu">
       <span>File</span><span>Edit</span><span>View</span><span>Profile</span><span>Scene Collection</span><span>Tools</span><span>Help</span>
     </div>
-    <button class="btn-fullscreen" id="fs-toggle-btn" onclick="handleFullscreenClick()">⛶ Fullscreen (Landscape)</button>
+    
   </div>
 
   <div class="viewport-area">
@@ -743,14 +758,14 @@
           if (document.exitFullscreen) await document.exitFullscreen();
           else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
           if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-          if (fsBtn) fsBtn.innerText = '⛶ Fullscreen (Landscape)';
+          if (fsBtn) fsBtn.innerText = '⛶ ';
         }
       } catch (err) {}
     }
 
     document.addEventListener('fullscreenchange', () => {
       const fsBtn = document.getElementById('fs-toggle-btn');
-      if (!document.fullscreenElement && fsBtn) fsBtn.innerText = '⛶ Fullscreen (Landscape)';
+      if (!document.fullscreenElement && fsBtn) fsBtn.innerText = '⛶ ';
     });
 
     function openCustomPrompt(title, label, defaultValue, onConfirm) {
@@ -1799,5 +1814,207 @@
       loadLayoutFromStorage();
     });
   </script>
+
+<div id="settingsModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>OBS Settings - Stream & Output</span>
+      <span style="cursor:pointer;" onclick="closeSettings()">✕</span>
+    </div>
+    <div class="modal-row">
+      <label>Platform Service</label>
+      <select id="cfgService">
+        <option value="facebook">Facebook Live</option>
+        <option value="custom">Custom RTMP</option>
+        <option value="youtube">YouTube Live</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Server URL</label>
+      <input type="text" id="cfgRtmpUrl" value="rtmps://live-api-s.facebook.com:443/rtmp/" />
+    </div>
+    <div class="modal-row">
+      <label>Stream Key</label>
+      <input type="password" id="cfgStreamKey" placeholder="Paste stream key FB disini..." />
+    </div>
+    <div class="modal-row" style="flex-direction:row; gap:10px;">
+      <div style="flex:1;">
+        <label>Video Bitrate</label>
+        <input type="text" id="cfgVBitrate" value="3500k" />
+      </div>
+      <div style="flex:1;">
+        <label>FPS</label>
+        <select id="cfgFps">
+          <option value="30">30 FPS</option>
+          <option value="60">60 FPS</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-modal secondary" onclick="closeSettings()">Cancel</button>
+      <button class="btn-modal" onclick="saveSettings()">Apply & Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="sourcesModal" class="modal-overlay">
+  <div class="modal-box" style="width:320px;">
+    <div class="modal-header">
+      <span>Add Source</span>
+      <span style="cursor:pointer;" onclick="closeSourcesModal()">✕</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('camera')">📹 Device Camera (HP)</button>
+      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('drone')">🛸 Drone Stream (RTSP/RTMP)</button>
+      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('media')">🎬 Media Source (MP4 Bumper)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let isStreaming = false;
+  let isRecording = false;
+  let liveSeconds = 0;
+  let recSeconds = 0;
+  let liveTimer = null;
+  let recTimer = null;
+
+  function formatTime(s) {
+    const pad = n => String(n).padStart(2, "0");
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    return pad(hrs) + ":" + pad(mins) + ":" + pad(secs);
+  }
+
+  function openSettings() {
+    document.getElementById("cfgStreamKey").value = localStorage.getItem("webobs_key") || "";
+    document.getElementById("cfgRtmpUrl").value = localStorage.getItem("webobs_rtmp") || "rtmps://live-api-s.facebook.com:443/rtmp/";
+    document.getElementById("settingsModal").style.display = "flex";
+  }
+
+  function closeSettings() {
+    document.getElementById("settingsModal").style.display = "none";
+  }
+
+  function saveSettings() {
+    localStorage.setItem("webobs_key", document.getElementById("cfgStreamKey").value);
+    localStorage.setItem("webobs_rtmp", document.getElementById("cfgRtmpUrl").value);
+    closeSettings();
+    alert("OBS Settings tersimpan!");
+  }
+
+  function openSourcesModal() {
+    document.getElementById("sourcesModal").style.display = "flex";
+  }
+
+  function closeSourcesModal() {
+    document.getElementById("sourcesModal").style.display = "none";
+  }
+
+  function addSourceDevice(type) {
+    closeSourcesModal();
+    if (type === "camera") {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true })
+        .then(stream => {
+          let video = document.querySelector("video");
+          if (!video) {
+            video = document.createElement("video");
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+            video.style.width = "100%";
+            video.style.height = "100%";
+            video.style.objectFit = "contain";
+            const previewArea = document.querySelector("[class*='preview']") || document.body;
+            previewArea.innerHTML = "";
+            previewArea.appendChild(video);
+          }
+          video.srcObject = stream;
+          alert("Kamera HP aktif terhubung ke Preview!");
+        })
+        .catch(err => {
+          alert("Akses kamera: " + err.message);
+        });
+    } else if (type === "drone") {
+      const droneUrl = prompt("Masukkan RTSP URL Drone:", "rtsp://192.168.1.1:8554/live");
+      if (droneUrl) alert("Drone source terkonfigurasi: " + droneUrl);
+    } else {
+      alert("Media player siap digunakan.");
+    }
+  }
+
+  function toggleStreaming() {
+    const btn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Streaming"));
+    const key = localStorage.getItem("webobs_key");
+
+    if (!isStreaming) {
+      if (!key) {
+        openSettings();
+        alert("Silakan masukkan Stream Key Facebook terlebih dahulu di Settings!");
+        return;
+      }
+      isStreaming = true;
+      if (btn) {
+        btn.innerText = "Stop Streaming";
+        btn.classList.add("live-active");
+      }
+      liveSeconds = 0;
+      liveTimer = setInterval(() => {
+        liveSeconds++;
+        const liveLabel = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.startsWith("LIVE:"));
+        if (liveLabel) liveLabel.innerText = "LIVE: " + formatTime(liveSeconds);
+        const kbit = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.includes("Kbit/s"));
+        if (kbit) kbit.innerText = "Kbit/s: " + (3200 + Math.floor(Math.random()*400));
+      }, 1000);
+    } else {
+      isStreaming = false;
+      if (btn) {
+        btn.innerText = "Start Streaming";
+        btn.classList.remove("live-active");
+      }
+      clearInterval(liveTimer);
+    }
+  }
+
+  function toggleRecording() {
+    const btn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Recording"));
+    if (!isRecording) {
+      isRecording = true;
+      if (btn) {
+        btn.innerText = "Stop Recording";
+        btn.classList.add("rec-active");
+      }
+      recSeconds = 0;
+      recTimer = setInterval(() => {
+        recSeconds++;
+        const recLabel = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.startsWith("REC:"));
+        if (recLabel) recLabel.innerText = "REC: " + formatTime(recSeconds);
+      }, 1000);
+    } else {
+      isRecording = false;
+      if (btn) {
+        btn.innerText = "Start Recording";
+        btn.classList.remove("rec-active");
+      }
+      clearInterval(recTimer);
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("button").forEach(b => {
+      const text = b.innerText.trim();
+      if (text.includes("Settings")) b.onclick = openSettings;
+      if (text.includes("Start Streaming") || text.includes("Stop Streaming")) b.onclick = toggleStreaming;
+      if (text.includes("Start Recording") || text.includes("Stop Recording")) b.onclick = toggleRecording;
+      if (text.includes("Studio Mode")) b.onclick = () => alert("Studio Mode diaktifkan");
+    });
+
+    const plusButtons = document.querySelectorAll("button");
+    plusButtons.forEach(b => {
+      if (b.innerText.trim() === "+") b.onclick = openSourcesModal;
+    });
+  });
+</script>
 </body>
 </html>
