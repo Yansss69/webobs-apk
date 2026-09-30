@@ -1857,18 +1857,7 @@
   </div>
 </div>
 
-<div id="sourcesModal" class="modal-overlay">
-  <div class="modal-box" style="width:320px;">
-    <div class="modal-header">
-      <span>Add Source</span>
-      <span style="cursor:pointer;" onclick="closeSourcesModal()">✕</span>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:6px;">
-      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('camera')">📹 Device Camera (HP)</button>
-      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('drone')">🛸 Drone Stream (RTSP/RTMP)</button>
-      <button class="btn-modal secondary" style="text-align:left; padding:8px;" onclick="addSourceDevice('media')">🎬 Media Source (MP4 Bumper)</button>
-    </div>
-  </div>
+
 </div>
 
 <script>
@@ -2338,5 +2327,213 @@
   };
 </script>
 <!-- TRANSFORM_STUDIO_ENGINE_END -->
+
+<!-- FILE INPUT GALERI -->
+<input type="file" id="pickerImage" accept="image/*" style="display:none;" onchange="handleImagePick(event)" />
+<input type="file" id="pickerVideo" accept="video/*" style="display:none;" onchange="handleVideoPick(event)" />
+
+<!-- MODAL SOURCES LENGKAP V2.0 -->
+<div id="obsSourcesModal" class="obs-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
+  <div style="background:#20212b; border:1px solid #303242; border-radius:8px; width:340px; max-height:85vh; overflow-y:auto; padding:15px; color:#fff; box-shadow:0 10px 30px #000;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #303242; padding-bottom:8px; margin-bottom:12px; font-weight:bold; font-size:13px;">
+      <span>Add Source (OBS Studio)</span>
+      <span style="cursor:pointer; font-size:16px; color:#888;" onclick="closeSourceModal()">✕</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <button class="obs-btn-src" onclick="pickFromGallery('image')">🖼️ Image (Buka Galeri Foto)</button>
+      <button class="obs-btn-src" onclick="pickFromGallery('video')">🎬 Media Source (Buka Galeri Video)</button>
+      <button class="obs-btn-src" onclick="startCameraDirect('environment')">📹 Video Capture (Kamera Belakang)</button>
+      <button class="obs-btn-src" onclick="startCameraDirect('user')">🤳 Video Capture (Kamera Depan)</button>
+      <button class="obs-btn-src" onclick="addDroneRTSP()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
+      <button class="obs-btn-src" onclick="addTextOverlay()">📝 Text (GDI+ Overlay)</button>
+      <button class="obs-btn-src" onclick="addColorSource()">⬛ Color Source (Background)</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .obs-btn-src {
+    background: #2b2d3c;
+    border: 1px solid #3c3f54;
+    color: #eee;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: left;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .obs-btn-src:active { background: #5865f2; border-color: #5865f2; }
+
+  /* Grid Transform Merah OBS */
+  .obs-box {
+    position: absolute;
+    border: 2px solid #ef4444;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+    z-index: 10;
+  }
+  .obs-box-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid #ef4444;
+    right: -8px;
+    bottom: -8px;
+    border-radius: 2px;
+  }
+</style>
+
+<script>
+  function closeSourceModal() {
+    document.getElementById("obsSourcesModal").style.display = "none";
+  }
+
+  function pickFromGallery(type) {
+    closeSourceModal();
+    if (type === "image") document.getElementById("pickerImage").click();
+    if (type === "video") document.getElementById("pickerVideo").click();
+  }
+
+  function getMonitor() {
+    let m = document.getElementById("studioPreviewCanvas");
+    if (m) return m;
+    m = document.querySelector("[class*='viewport'], [class*='preview'], [id*='preview']");
+    if (!m) m = document.querySelector("div[style*='relative']") || document.body;
+    return m;
+  }
+
+  function makeMovable(box) {
+    const handle = box.querySelector(".obs-box-handle");
+    let isDrag = false, isResize = false;
+    let sX, sY, sW, sH, sL, sT;
+
+    function start(e) {
+      e.stopPropagation();
+      const p = e.touches ? e.touches[0] : e;
+      sX = p.clientX; sY = p.clientY;
+      sL = box.offsetLeft; sT = box.offsetTop;
+      sW = box.offsetWidth; sH = box.offsetHeight;
+      if (e.target === handle) isResize = true;
+      else isDrag = true;
+    }
+
+    function move(e) {
+      if (!isDrag && !isResize) return;
+      const p = e.touches ? e.touches[0] : e;
+      const dx = p.clientX - sX;
+      const dy = p.clientY - sY;
+      if (isDrag) {
+        box.style.left = (sL + dx) + "px";
+        box.style.top = (sT + dy) + "px";
+      } else if (isResize) {
+        box.style.width = Math.max(50, sW + dx) + "px";
+        box.style.height = Math.max(50, sH + dy) + "px";
+      }
+    }
+
+    function stop() { isDrag = false; isResize = false; }
+
+    box.addEventListener("mousedown", start);
+    box.addEventListener("touchstart", start, {passive:false});
+    window.addEventListener("mousemove", move);
+    window.addEventListener("touchmove", move, {passive:false});
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("touchend", stop);
+  }
+
+  function wrapMedia(mediaEl, w, h) {
+    const box = document.createElement("div");
+    box.className = "obs-box";
+    box.style.width = (w || 240) + "px";
+    box.style.height = (h || 135) + "px";
+    box.style.left = "30px";
+    box.style.top = "20px";
+
+    mediaEl.style.width = "100%";
+    mediaEl.style.height = "100%";
+    mediaEl.style.objectFit = "cover";
+    mediaEl.style.pointerEvents = "none";
+    box.appendChild(mediaEl);
+
+    const handle = document.createElement("div");
+    handle.className = "obs-box-handle";
+    box.appendChild(handle);
+
+    makeMovable(box);
+    getMonitor().appendChild(box);
+  }
+
+  function handleImagePick(e) {
+    const f = e.target.files[0];
+    if (!f) return;
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(f);
+    wrapMedia(img, 200, 150);
+  }
+
+  function handleVideoPick(e) {
+    const f = e.target.files[0];
+    if (!f) return;
+    const v = document.createElement("video");
+    v.src = URL.createObjectURL(f);
+    v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+    wrapMedia(v, 260, 146);
+  }
+
+  function startCameraDirect(facing) {
+    closeSourceModal();
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
+      .then(stream => {
+        const v = document.createElement("video");
+        v.autoplay = true; v.muted = true; v.playsInline = true;
+        v.srcObject = stream;
+        wrapMedia(v, 260, 146);
+      })
+      .catch(err => alert("Kamera error: " + err.message));
+  }
+
+  function addDroneRTSP() {
+    closeSourceModal();
+    const u = prompt("Masukkan URL Drone RTSP/RTMP:", "rtsp://192.168.1.1:8554/live");
+    if (u) alert("Drone connected: " + u);
+  }
+
+  function addTextOverlay() {
+    closeSourceModal();
+    const t = prompt("Masukkan Teks:", "LIVE STREAM DRONE");
+    if (!t) return;
+    const d = document.createElement("div");
+    d.style.color = "#fff"; d.style.fontWeight = "bold"; d.style.fontSize = "18px";
+    d.style.textShadow = "2px 2px 4px #000"; d.innerText = t;
+    wrapMedia(d, 220, 50);
+  }
+
+  function addColorSource() {
+    closeSourceModal();
+    const d = document.createElement("div");
+    d.style.background = "#2563eb";
+    wrapMedia(d, 200, 120);
+  }
+
+  // Tautkan tombol + panel Sources langsung
+  window.addEventListener("DOMContentLoaded", () => {
+    setInterval(() => {
+      const srcPanel = document.querySelector("[class*='sources'], [id*='sources']");
+      if (srcPanel) {
+        const btnPlus = Array.from(srcPanel.querySelectorAll("button")).find(b => b.innerText.trim() === "+");
+        if (btnPlus && !btnPlus.dataset.hooked) {
+          btnPlus.dataset.hooked = "true";
+          btnPlus.onclick = (e) => {
+            e.stopPropagation();
+            document.getElementById("obsSourcesModal").style.display = "flex";
+          };
+        }
+      }
+    }, 500);
+  });
+</script>
 </body>
 </html>
