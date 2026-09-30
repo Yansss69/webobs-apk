@@ -30,23 +30,17 @@ jobs:
     - name: Build Debug APK
       run: gradle assembleDebug --stacktrace
 
-    - name: Package Release ZIP
+    - name: Package Release
       run: |
-        sudo apt-get update && sudo apt-get install -y zip
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS.apk
-        cd package_output
-        zip -9 WebOBS-v2.0-ULTIMATE.zip WebOBS.apk
-        cd ..
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v3.0-FINAL.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v2.0-ultimate-${{ github.run_number }}"
-        name: "WebOBS Studio v2.0 ULTIMATE (Build #${{ github.run_number }})"
-        body: "WebOBS Studio v2.0 ULTIMATE: Galeri Foto/Video, Grid Merah Drag & Scale, Dual Monitor Studio Mode, Mic dB Meter."
-        files: |
-          package_output/WebOBS-v2.0-ULTIMATE.zip
-          package_output/WebOBS.apk
+        tag_name: "v3.0-final-${{ github.run_number }}"
+        name: "WebOBS Studio v3.0 FINAL (Build #${{ github.run_number }})"
+        body: "WebOBS Studio v3.0 Final: Dual Screen Studio Mode, Drag/Resize Grid Merah, Galeri Android Langsung, dB Audio Real-time."
+        files: package_output/WebOBS-v3.0-FINAL.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

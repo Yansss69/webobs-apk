@@ -1,2538 +1,535 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>OBS Studio 30 Master Production</title>
-<style>
-  :root {
-    --obs-bg: #181920;
-    --obs-panel: #20212b;
-    --obs-dock-header: #262734;
-    --obs-border: #303242;
-    --obs-accent: #5865f2;
-    --obs-red: #ed4245;
-    --obs-green: #57f287;
-    --obs-text: #dcddde;
-    --obs-text-muted: #8e9297;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; }
-  html, body { overscroll-behavior-y: contain; touch-action: pan-x pan-y; }
-  body { background-color: var(--obs-bg); color: var(--obs-text); height: 100vh; width: 100vw; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WebOBS Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100vw; height: 100vh; overflow: hidden; background: #14151b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #dcddde; user-select: none; }
+    #app { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
+    
+    /* Top Bar Menu */
+    .topbar { height: 26px; background: #1f2029; display: flex; align-items: center; padding: 0 10px; font-size: 11px; gap: 14px; border-bottom: 1px solid #2d2f3d; }
+    .topbar span { cursor: pointer; color: #b9bbbe; }
+    .topbar span:hover { color: #fff; }
 
-  .obs-titlebar { background: #121318; padding: 3px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--obs-border); height: 26px; flex-shrink: 0; }
-  .obs-menu { display: flex; gap: 14px; }
-  .obs-menu span { color: var(--obs-text-muted); cursor: pointer; font-size: 10.5px; }
-  .btn-fullscreen { background: #262734; border: 1px solid var(--obs-border); color: #fff; padding: 2px 7px; border-radius: 3px; font-weight: 500; font-size: 10px; cursor: pointer; }
-  .btn-fullscreen:active { background: var(--obs-accent); }
+    /* Canvas Viewport */
+    .viewport-area { flex: 1; display: flex; background: #0b0c10; position: relative; overflow: hidden; justify-content: center; align-items: center; padding: 4px; }
+    .studio-container { display: flex; width: 100%; height: 100%; gap: 6px; }
+    .monitor-box { flex: 1; height: 100%; display: flex; flex-direction: column; position: relative; background: #000; }
+    .monitor-header { height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; padding: 0 6px; justify-content: space-between; }
+    .preview-header { background: #1e3a8a; color: #93c5fd; }
+    .program-header { background: #7f1d1d; color: #fca5a5; }
+    
+    .screen-stage { flex: 1; position: relative; overflow: hidden; background: #0d0e12; touch-action: none; }
+    
+    /* Bounding Box Merah OBS */
+    .obs-item { position: absolute; border: 2px solid #ef4444; cursor: move; touch-action: none; }
+    .obs-item.selected { box-shadow: 0 0 8px rgba(239, 68, 68, 0.7); }
+    .obs-resizer { position: absolute; width: 16px; height: 16px; background: #fff; border: 2px solid #ef4444; right: -8px; bottom: -8px; border-radius: 2px; }
 
-  .viewport-area { flex: 1; min-height: 0; display: flex; background: #0c0d11; align-items: center; justify-content: center; position: relative; padding: 3px 6px; gap: 6px; overflow: hidden; }
-  .screen-card { height: 100%; aspect-ratio: 16/9; position: relative; display: flex; flex-direction: column; }
-  .screen-tag { font-size: 8.5px; font-weight: 700; padding: 2px 5px; background: var(--obs-dock-header); border: 1px solid var(--obs-border); border-bottom: none; color: var(--obs-text-muted); width: fit-content; border-radius: 3px 3px 0 0; text-transform: uppercase; }
-  .screen-frame { flex: 1; background: #000; border: 1px solid #3c3e50; position: relative; overflow: hidden; border-radius: 0 3px 3px 3px; }
-  .screen-frame::before { content: ""; position: absolute; border: 1px solid rgba(237,66,69,0.4); top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 999; }
-  .program-live::before { border-color: rgba(87,242,135,0.7) !important; }
+    /* Transition Bar */
+    .trans-bar { width: 75px; display: flex; flex-direction: column; justify-content: center; gap: 8px; align-items: center; }
+    .trans-btn { width: 100%; background: #272936; border: 1px solid #3c3f52; color: #fff; font-size: 10px; font-weight: bold; padding: 8px 2px; border-radius: 4px; cursor: pointer; }
+    .trans-btn:active { background: #5865f2; }
 
-  .studio-divider { display: none; flex-direction: column; justify-content: center; gap: 6px; padding: 0 3px; z-index: 100; }
-  .studio-divider button { background: #262736; border: 1px solid var(--obs-border); color: #fff; padding: 6px 10px; border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 9.5px; }
-  .studio-divider button:active { background: var(--obs-accent); }
+    /* Bottom Control Docks */
+    .dock-area { height: 130px; background: #1a1b24; border-top: 1px solid #2d2f3d; display: flex; }
+    .dock-col { border-right: 1px solid #2d2f3d; display: flex; flex-direction: column; }
+    .dock-title { font-size: 9px; font-weight: bold; padding: 4px 8px; background: #161720; color: #8e9297; text-transform: uppercase; border-bottom: 1px solid #262836; display: flex; justify-content: space-between; }
+    .dock-list { flex: 1; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+    .dock-actions { height: 26px; background: #161720; display: flex; align-items: center; gap: 4px; padding: 0 6px; border-top: 1px solid #262836; }
+    .dock-btn { background: #282a3a; border: 1px solid #3a3d52; color: #dcddde; min-width: 22px; height: 20px; font-size: 11px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .dock-btn:active { background: #5865f2; color: #fff; }
 
-  .obs-media-bar { height: 22px; background: #13141a; border-top: 1px solid #232530; border-bottom: 1px solid var(--obs-border); display: flex; align-items: center; padding: 0 8px; gap: 6px; flex-shrink: 0; z-index: 50; }
-  .media-btn-grp { display: flex; gap: 3px; align-items: center; }
-  .media-btn { background: #21222d; border: 1px solid #333544; color: #d0d2db; width: 19px; height: 16px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; }
-  .media-btn:hover { background: #2f3140; color: #fff; }
-  .media-btn:active { background: var(--obs-accent); color: #fff; }
+    .list-item { font-size: 11px; padding: 4px 6px; border-radius: 3px; background: #232533; color: #dcddde; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+    .list-item.active { background: #5865f2; color: #fff; font-weight: bold; }
 
-  .media-slider-wrap { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; }
-  .media-scrubber { flex: 1; height: 3px; -webkit-appearance: none; appearance: none; background: #232532; border-radius: 2px; cursor: pointer; outline: none; margin: 0; }
-  .media-scrubber::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 9px; height: 9px; border-radius: 50%; background: #ffffff; border: 1.5px solid var(--obs-accent); cursor: pointer; }
-  .media-time-label { font-family: monospace; font-size: 8.5px; color: #7f8391; white-space: nowrap; }
+    /* Controls Panel */
+    .ctrl-col { width: 130px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-btn { flex: 1; background: #262837; border: 1px solid #383b50; color: #dcddde; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: 500; }
+    .ctrl-btn:active { background: #40445a; }
+    .live-active { background: #ed4245 !important; color: #fff !important; font-weight: bold; }
+    .rec-active { background: #ed4245 !important; color: #fff !important; font-weight: bold; }
 
-  .scene-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
-  .scene-canvas.active { display: block; }
-  .scene-empty { position: absolute; top: 45%; left: 35%; color: #353748; font-size: 13px; font-weight: 700; pointer-events: none; }
+    /* Status Bar */
+    .statusbar { height: 20px; background: #111217; display: flex; align-items: center; padding: 0 8px; font-size: 10px; color: #72767d; gap: 14px; border-top: 1px solid #22232e; }
 
-  .transform-box { position: absolute; cursor: move; touch-action: none; border: 1px solid transparent; width: 100%; height: 100%; top: 0; left: 0; }
-  .transform-box.selected { border: 1px solid var(--obs-red); }
-  .transform-box.selected::after { content: ""; position: absolute; width: 7px; height: 7px; background: var(--obs-red); border: 1px solid #fff; bottom: -4px; right: -4px; border-radius: 1px; }
-  .transform-box * { pointer-events: none; }
-
-  .media-layer { width: 100%; height: 100%; object-fit: contain; }
-  .marquee-layer { position: absolute; bottom: 0; width: 100%; white-space: nowrap; font-size: 15px; font-weight: 700; color: #fff; text-shadow: 2px 2px 3px #000; line-height: 1; }
-
-  .docks-container { height: 155px; flex-shrink: 0; display: grid; grid-template-columns: 135px 210px 1fr 135px 140px; background: var(--obs-panel); }
-  .obs-dock { border-right: 1px solid var(--obs-border); display: flex; flex-direction: column; min-height: 0; }
-  .dock-titlebar { background: var(--obs-dock-header); padding: 3px 8px; font-weight: 700; font-size: 9.5px; text-transform: uppercase; color: var(--obs-text-muted); border-bottom: 1px solid var(--obs-border); display: flex; justify-content: space-between; align-items: center; }
-  .dock-body { flex: 1; overflow-y: auto; padding: 3px; }
-
-  .list-row { padding: 4px 7px; margin-bottom: 2px; border-radius: 3px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); font-size: 10px; }
-  .list-row:hover { background: #282937; }
-  .list-row.active { background: var(--obs-accent); color: #fff; font-weight: 600; }
-  .row-actions span { cursor: pointer; padding: 1px 3px; font-size: 10px; opacity: 0.8; }
-
-  .dock-tools { display: flex; gap: 3px; padding: 3px 5px; border-top: 1px solid var(--obs-border); background: var(--obs-dock-header); flex-shrink: 0; }
-  .dock-tools button { background: #282937; border: 1px solid var(--obs-border); color: #fff; width: 21px; height: 19px; border-radius: 3px; cursor: pointer; font-weight: 700; font-size: 10px; display: flex; align-items: center; justify-content: center; }
-  .dock-tools button:active { background: var(--obs-accent); }
-
-  .mixer-channels { display: flex; flex-direction: column; gap: 4px; padding: 3px 5px; overflow-y: auto; height: 100%; }
-  .mixer-channel { background: #171821; border: 1px solid #2d2e3d; border-radius: 3px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; }
-  .ch-top { display: flex; justify-content: space-between; align-items: center; }
-  .ch-title-grp { display: flex; align-items: center; gap: 5px; overflow: hidden; }
-  .ch-name { font-size: 9.5px; font-weight: 600; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 130px; }
-  .ch-db { font-size: 8.5px; font-family: monospace; color: var(--obs-text-muted); }
-  .ch-btns { display: flex; align-items: center; gap: 3px; }
-  .ch-btn { background: #242533; border: 1px solid #363849; border-radius: 2px; color: #bbb; font-size: 9px; padding: 1px 4px; cursor: pointer; }
-  .ch-btn.muted { background: var(--obs-red); border-color: #ff6b6e; color: #fff; }
-
-  .ch-meter-track { height: 5px; background: #0b0c10; border: 1px solid #232430; border-radius: 2px; position: relative; overflow: hidden; display: flex; }
-  .ch-meter-val { height: 100%; width: 0%; background: linear-gradient(90deg, #57f287 0%, #fee75c 75%, #ed4245 95%); transition: width 0.05s linear; }
-  .ch-peak-pin { position: absolute; top: 0; bottom: 0; width: 1.5px; background: #ffffff; left: 0%; transition: left 0.08s ease-out; }
-  .ch-slider { width: 100%; height: 3px; accent-color: var(--obs-accent); background: #0b0c10; cursor: pointer; margin-top: 1px; }
-
-  .trans-box { padding: 6px; display: flex; flex-direction: column; gap: 5px; }
-  .trans-input { background: #15161e; border: 1px solid var(--obs-border); color: #fff; padding: 3px 5px; border-radius: 3px; width: 100%; font-size: 9.5px; }
-
-  .ctrl-buttons { display: flex; flex-direction: column; gap: 2.5px; padding: 4px; overflow-y: auto; }
-  .btn-ctrl { background: #262734; border: 1px solid var(--obs-border); color: var(--obs-text); padding: 4px 5px; border-radius: 3px; cursor: pointer; font-weight: 600; text-align: center; font-size: 9.5px; transition: background 0.15s; }
-  .btn-ctrl:hover { background: #333446; }
-  .btn-ctrl.btn-rec { background: var(--obs-red); color: #fff; border-color: #ff6b6e; }
-  .btn-ctrl.btn-live { background: var(--obs-green); color: #121318; border-color: #79f5a0; }
-  .btn-ctrl.btn-studio { background: var(--obs-accent); color: #fff; border-color: #7983f5; }
-
-  .status-footer { background: #101116; padding: 2px 8px; display: flex; gap: 15px; font-size: 9px; border-top: 1px solid var(--obs-border); color: var(--obs-text-muted); height: 18px; flex-shrink: 0; align-items: center; font-family: monospace; }
-  .dot-indicator { width: 5px; height: 5px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #555; }
-  .dot-live.active { background: var(--obs-green); box-shadow: 0 0 5px var(--obs-green); }
-  .dot-rec.active { background: var(--obs-red); box-shadow: 0 0 5px var(--obs-red); }
-
-  .obs-modal { display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-  .modal-dialog { background: var(--obs-panel); border: 1px solid var(--obs-border); width: 330px; box-shadow: 0 8px 30px rgba(0,0,0,0.8); border-radius: 5px; overflow: hidden; }
-  .modal-head { background: var(--obs-dock-header); padding: 6px 10px; font-weight: 700; border-bottom: 1px solid var(--obs-border); display: flex; justify-content: space-between; align-items: center; }
-  .modal-body { padding: 9px; display: flex; flex-direction: column; gap: 7px; max-height: 80vh; overflow-y: auto; }
-  .modal-body label { color: var(--obs-text-muted); font-size: 9.5px; font-weight: 600; }
-  .modal-body input, .modal-body select { background: #15161e; border: 1px solid var(--obs-border); color: #fff; padding: 5px 7px; border-radius: 3px; outline: none; width: 100%; font-size: 10px; }
-  .modal-foot { display: flex; justify-content: flex-end; gap: 5px; padding: 5px 9px; background: #181922; border-top: 1px solid var(--obs-border); }
-  .modal-foot button { background: #282937; border: 1px solid var(--obs-border); color: #fff; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 10.5px; }
-  .modal-foot button.primary { background: var(--obs-accent); border-color: var(--obs-accent); }
-</style>
-
-<style>
-  html, body { width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0; }
-  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); z-index: 9999; align-items: center; justify-content: center; }
-  .modal-box { background: #20212b; border: 1px solid #303242; border-radius: 8px; width: 450px; max-width: 90%; color: #dcddde; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
-  .modal-header { font-size: 14px; font-weight: bold; border-bottom: 1px solid #303242; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; }
-  .modal-row { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
-  .modal-row label { font-size: 11px; color: #8e9297; }
-  .modal-row input, .modal-row select { background: #181920; border: 1px solid #303242; color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none; }
-  .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
-  .btn-modal { background: #5865f2; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-  .btn-modal.secondary { background: #303242; }
-  .live-active { background: #ed4245 !important; color: white !important; font-weight: bold; }
-  .rec-active { background: #ed4245 !important; color: white !important; font-weight: bold; }
-</style>
+    /* Modal System */
+    .modal-wrap { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; }
+    .modal-box { background: #20212b; border: 1px solid #303242; border-radius: 6px; width: 340px; max-height: 85vh; overflow-y: auto; padding: 14px; color: #dcddde; }
+    .modal-head { font-size: 12px; font-weight: bold; border-bottom: 1px solid #303242; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .src-opt { background: #282a3a; border: 1px solid #3a3d52; color: #fff; padding: 8px 10px; border-radius: 4px; text-align: left; font-size: 11px; cursor: pointer; margin-bottom: 5px; width: 100%; }
+    .src-opt:active { background: #5865f2; }
+    .form-row { margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .form-row label { font-size: 10px; color: #8e9297; }
+    .form-row input, .form-row select { background: #161720; border: 1px solid #303242; color: #fff; padding: 5px; border-radius: 3px; font-size: 11px; outline: none; }
+  </style>
 </head>
 <body>
-
-  <div class="obs-titlebar">
-    <div class="obs-menu">
-      <span>File</span><span>Edit</span><span>View</span><span>Profile</span><span>Scene Collection</span><span>Tools</span><span>Help</span>
-    </div>
-    
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <span>File</span><span>Edit</span><span>View</span><span>Profile</span><span>Scene Collection</span><span>Tools</span><span>Help</span>
   </div>
 
+  <!-- Viewport Monitors -->
   <div class="viewport-area">
-    <div class="screen-card" id="preview-wrapper">
-      <div class="screen-tag" id="preview-tag" style="display:none;">PREVIEW</div>
-      <div class="screen-frame" id="screen-display" onclick="deselectAll(event)">
-        <div class="scene-canvas active" id="canvas-scene-1">
-          <div class="scene-empty" id="empty-scene-1">SCENE 1 (EMPTY)</div>
+    <div class="studio-container" id="studioContainer">
+      <!-- Preview Monitor -->
+      <div class="monitor-box" id="previewMonitorBox" style="border: 1px solid #2563eb;">
+        <div class="monitor-header preview-header" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
+        <div class="screen-stage" id="previewStage"></div>
+      </div>
+      <!-- Center Transitions -->
+      <div class="trans-bar" id="transBar" style="display:none;">
+        <button class="trans-btn" onclick="execTransition('cut')">CUT</button>
+        <button class="trans-btn" onclick="execTransition('fade')" style="background:#2563eb;">TRANSITION</button>
+      </div>
+      <!-- Program Monitor -->
+      <div class="monitor-box" id="programMonitorBox" style="display:none; border: 1px solid #dc2626;">
+        <div class="monitor-header program-header"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
+        <div class="screen-stage" id="programStage"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Docks Panel -->
+  <div class="dock-area">
+    <!-- Scenes -->
+    <div class="dock-col" style="width: 140px;">
+      <div class="dock-title">Scenes</div>
+      <div class="dock-list" id="scenesList"></div>
+      <div class="dock-actions">
+        <button class="dock-btn" onclick="promptAddScene()">+</button>
+        <button class="dock-btn" onclick="removeActiveScene()">-</button>
+      </div>
+    </div>
+    <!-- Sources -->
+    <div class="dock-col" style="width: 180px;">
+      <div class="dock-title">Sources</div>
+      <div class="dock-list" id="sourcesList"></div>
+      <div class="dock-actions">
+        <button class="dock-btn" onclick="openSourcesModal()">+</button>
+        <button class="dock-btn" onclick="removeSelectedSource()">-</button>
+      </div>
+    </div>
+    <!-- Audio Mixer -->
+    <div class="dock-col" style="flex: 1;">
+      <div class="dock-title"><span>Audio Mixer</span><span style="color:#3ba55c; font-size:8px;">REAL-TIME</span></div>
+      <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+          <span>Mic/Aux</span>
+          <span id="dbDisplay" style="color: #3ba55c;">-60 dB</span>
         </div>
+        <input type="range" id="micSlider" min="0" max="100" value="85" style="width: 100%; accent-color: #5865f2;">
       </div>
     </div>
-
-    <div class="studio-divider" id="studio-controls">
-      <button onclick="executeStudioTransition('Fade')">Fade ➔</button>
-      <button onclick="executeStudioTransition('Cut')">Cut ➔</button>
-    </div>
-
-    <div class="screen-card" id="program-wrapper" style="display:none;">
-      <div class="screen-tag" style="color: var(--obs-green);">PROGRAM (LIVE STREAM)</div>
-      <div class="screen-frame program-live" id="program-display">
-        <canvas id="program-feed-canvas" width="1280" height="720" style="width: 100%; height: 100%; object-fit: contain;"></canvas>
+    <!-- Scene Transitions -->
+    <div class="dock-col" style="width: 130px;">
+      <div class="dock-title">Transitions</div>
+      <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+        <select style="background:#161720; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;"><option>Fade</option><option>Cut</option></select>
+        <input type="text" value="300 ms" style="background:#161720; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" />
       </div>
     </div>
-  </div>
-
-  <div class="obs-media-bar">
-    <div class="media-btn-grp">
-      <button class="media-btn" id="btn-media-play" title="Play / Pause" onclick="toggleActiveMediaPlay()">▶</button>
-      <button class="media-btn" id="btn-media-restart" title="Restart Video" onclick="restartActiveMedia()">⏮</button>
-      <button class="media-btn" id="btn-media-stop" title="Stop" onclick="stopActiveMedia()">⏹</button>
-    </div>
-    <div class="media-slider-wrap">
-      <input type="range" class="media-scrubber" id="media-seeker" min="0" max="1000" value="0" 
-             onpointerdown="isUserScrubbing = true" 
-             onpointerup="isUserScrubbing = false; seekActiveMedia(this.value)" 
-             oninput="updateScrubberFill(this.value)">
-      <span class="media-time-label" id="media-time-display">--:-- / --:--</span>
+    <!-- Controls -->
+    <div class="dock-col ctrl-col">
+      <button class="ctrl-btn" id="btnStreaming" onclick="toggleStreaming()">Start Streaming</button>
+      <button class="ctrl-btn" id="btnRecording" onclick="toggleRecording()">Start Recording</button>
+      <button class="ctrl-btn" id="btnStudioMode" onclick="toggleStudioMode()">Studio Mode</button>
+      <button class="ctrl-btn" onclick="openSettingsModal()">Settings</button>
     </div>
   </div>
 
-  <canvas id="master-render-canvas" width="1280" height="720" style="display:none;"></canvas>
-
-  <div class="docks-container">
-    <div class="obs-dock">
-      <div class="dock-titlebar"><span>Scenes</span></div>
-      <div class="dock-body" id="scenes-list">
-        <div class="list-row active" data-scene-id="scene-1" onclick="switchScene('scene-1', this)">Scene 1</div>
-      </div>
-      <div class="dock-tools">
-        <button type="button" onclick="openCustomPrompt('Tambah Scene', 'Nama Scene Baru:', 'Scene ' + (sceneCounter + 1), confirmAddScene)">+</button>
-        <button type="button" onclick="removeActiveScene()">-</button>
-      </div>
-    </div>
-
-    <div class="obs-dock">
-      <div class="dock-titlebar"><span>Sources</span></div>
-      <div class="dock-body" id="sources-list"></div>
-      <div class="dock-tools">
-        <button type="button" onclick="openSourceDialog()">+</button>
-        <button type="button" onclick="removeActiveSource()">-</button>
-        <button type="button" title="Pindah Naik" onclick="moveLayerUp()">▲</button>
-        <button type="button" title="Pindah Turun" onclick="moveLayerDown()">▼</button>
-        <button type="button" title="Filter Visual" onclick="openFilterDialog()">🎨</button>
-        <button type="button" title="Perbesar" onclick="scaleActiveSource(1.1)">🔍+</button>
-        <button type="button" title="Perkecil" onclick="scaleActiveSource(0.9)">🔍-</button>
-        <button type="button" title="Flip" onclick="flipActiveSource()">↔</button>
-        <button type="button" title="Center" onclick="centerActiveSource()">🎯</button>
-        <button type="button" title="Fit to Screen" onclick="fitActiveSource()">⛶</button>
-      </div>
-    </div>
-
-    <div class="obs-dock">
-      <div class="dock-titlebar">
-        <span>Audio Mixer</span>
-        <span style="font-size: 8px; color: var(--obs-green); font-family: monospace;">REAL-TIME</span>
-      </div>
-      <div class="dock-body" style="padding: 0;">
-        <div class="mixer-channels" id="mixer-channels-list">
-          <div class="mixer-channel" id="mac-mic">
-            <div class="ch-top">
-              <div class="ch-title-grp">
-                <span class="ch-name">Mic/Aux</span>
-                <span class="ch-db" id="mac-db-mic">-inf dB</span>
-              </div>
-              <div class="ch-btns">
-                <button class="ch-btn" id="mac-mute-mic" onclick="toggleModernMute('mic')">🔊</button>
-                <button class="ch-btn" onclick="startMicCapture()" title="Sambungkan Mikrofon HP">🎙</button>
-              </div>
-            </div>
-            <div class="ch-meter-track">
-              <div class="ch-meter-val" id="mac-fill-mic"></div>
-              <div class="ch-peak-pin" id="mac-peak-mic"></div>
-            </div>
-            <input type="range" class="ch-slider" min="0" max="100" value="100" oninput="changeModernGain('mic', this.value)">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="obs-dock">
-      <div class="dock-titlebar"><span>Scene Transitions</span></div>
-      <div class="trans-box">
-        <select class="trans-input" id="transition-type">
-          <option value="Cut">Cut</option>
-          <option value="Fade" selected>Fade</option>
-        </select>
-        <div>
-          <label style="color: var(--obs-text-muted); font-size: 8.5px;">Duration</label>
-          <input type="number" class="trans-input" id="transition-ms" value="300">
-        </div>
-      </div>
-    </div>
-
-    <div class="obs-dock" style="border-right: none;">
-      <div class="dock-titlebar"><span>Controls</span></div>
-      <div class="ctrl-buttons">
-        <button class="btn-ctrl" id="stream-btn" onclick="toggleLiveStreaming()">Start Streaming</button>
-        <button class="btn-ctrl" id="record-btn" onclick="toggleRealRecord()">Start Recording</button>
-        <button class="btn-ctrl" id="studio-mode-btn" onclick="toggleStudioMode()">Studio Mode</button>
-        <button class="btn-ctrl" onclick="openSettingsDialog()">Settings</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="status-footer">
-    <span><span class="dot-indicator dot-live" id="live-dot"></span>LIVE: <span id="live-indicator">00:00:00</span></span>
-    <span><span class="dot-indicator dot-rec" id="rec-dot"></span>REC: <span id="rec-indicator">00:00:00</span></span>
-    <span>CPU: <span id="cpu-indicator">0.0%</span>, <span id="fps-indicator">60.00 fps</span></span>
-    <span>Kbit/s: <span id="kbit-indicator">0</span></span>
-  </div>
-
-  <div class="obs-modal" id="source-modal">
-    <div class="modal-dialog">
-      <div class="modal-head">
-        <span>Add Source</span>
-        <span style="cursor:pointer;" onclick="closeSourceDialog()">✕</span>
-      </div>
-      <div style="padding: 4px 0; max-height: 240px; overflow-y: auto;">
-        <div class="list-row" onclick="addCameraDevice('user')">📷 Video Capture Device (Kamera Depan)</div>
-        <div class="list-row" onclick="addCameraDevice('environment')">📸 Video Capture Device (Kamera Belakang)</div>
-        <label class="list-row">
-          🎬 Media Source (Video Galeri)
-          <input type="file" accept="video/*" style="display:none" onchange="loadPersistentMedia(event, 'video')">
-        </label>
-        <label class="list-row">
-          🖼️ Image (Galeri Foto)
-          <input type="file" accept="image/*" style="display:none" onchange="loadPersistentMedia(event, 'image')">
-        </label>
-        <label class="list-row">
-          🎵 Audio Input Capture (File Musik)
-          <input type="file" accept="audio/*" style="display:none" onchange="loadPersistentMedia(event, 'audio')">
-        </label>
-        <div class="list-row" onclick="openTextDialog()">📝 Text (GDI+ / Running Text)</div>
-        <div class="list-row" onclick="openRTMPDialog()">📡 Media Source (RTMP / HLS URL)</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="obs-modal" id="settings-modal">
-    <div class="modal-dialog">
-      <div class="modal-head">
-        <span>Settings - Output Streaming</span>
-        <span style="cursor:pointer;" onclick="closeSettingsDialog()">✕</span>
-      </div>
-      <div class="modal-body">
-        <label>Platform Siaran:</label>
-        <select id="setting-platform" onchange="onPlatformChange(this.value)">
-          <option value="facebook" selected>Facebook Live (RTMPS)</option>
-          <option value="youtube">YouTube Live (RTMP)</option>
-          <option value="tiktok">TikTok Live</option>
-          <option value="custom">Custom Server...</option>
-        </select>
-
-        <label>Server URL (Otomatis):</label>
-        <input type="text" id="setting-rtmp-url" value="rtmps://live-api-s.facebook.com:443/rtmp/">
-
-        <label style="color:#57f287;">Stream Key (Tempel Langsung Di Sini):</label>
-        <input type="text" id="setting-stream-key" placeholder="Tempel Stream Key Facebook">
-
-        <div style="display:flex; gap:6px;">
-          <div style="flex:1;">
-            <label>Video Bitrate:</label>
-            <select id="setting-vbitrate">
-              <option value="3000k">3000 kbps</option>
-              <option value="3500k" selected>3500 kbps (HD Tajam)</option>
-              <option value="4500k">4500 kbps (Super HD)</option>
-            </select>
-          </div>
-          <div style="flex:1;">
-            <label>Audio Bitrate:</label>
-            <select id="setting-abitrate">
-              <option value="128k" selected>128 kbps (Standar Meta)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button onclick="closeSettingsDialog()">Batal</button>
-        <button class="primary" onclick="saveSettings()">Simpan Pengaturan</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="obs-modal" id="filter-modal">
-    <div class="modal-dialog">
-      <div class="modal-head">
-        <span>Filters - Color Correction</span>
-        <span style="cursor:pointer;" onclick="closeFilterDialog()">✕</span>
-      </div>
-      <div class="modal-body">
-        <label>Opacity: <span id="val-opacity">100%</span></label>
-        <input type="range" min="10" max="100" value="100" oninput="applyVisualFilter('opacity', this.value)">
-        <label>Brightness: <span id="val-brightness">100%</span></label>
-        <input type="range" min="30" max="200" value="100" oninput="applyVisualFilter('brightness', this.value)">
-        <label>Contrast: <span id="val-contrast">100%</span></label>
-        <input type="range" min="30" max="200" value="100" oninput="applyVisualFilter('contrast', this.value)">
-      </div>
-      <div class="modal-foot">
-        <button class="primary" onclick="closeFilterDialog()">Selesai</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="obs-modal" id="custom-prompt-modal">
-    <div class="modal-dialog">
-      <div class="modal-head">
-        <span id="prompt-modal-title">Input</span>
-        <span style="cursor:pointer;" onclick="closeCustomPrompt()">✕</span>
-      </div>
-      <div class="modal-body">
-        <label id="prompt-modal-label" style="color: var(--obs-text-muted); font-size: 9.5px;"></label>
-        <input type="text" id="prompt-modal-input">
-      </div>
-      <div class="modal-foot">
-        <button onclick="closeCustomPrompt()">Batal</button>
-        <button class="primary" id="prompt-modal-ok">OK</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let isStreaming = false, isRecording = false;
-    let streamTimer = null, recTimer = null;
-    let streamStartTime = 0, recStartTime = 0;
-    
-    let isStudioMode = false;
-    let activeSceneId = 'scene-1';
-    let programSceneId = 'scene-1';
-    let sceneCounter = 1;
-    let sourceCounter = 0;
-    let activeBox = null;
-    let currentPromptCallback = null;
-
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let liveMediaRecorder = null;
-    let liveWs = null;
-    let programRenderAnimFrame = null;
-    let programStateSnapshot = [];
-
-    let db = null;
-    function initIndexedDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('OBSStudioMediaDB', 1);
-        req.onupgradeneeded = (e) => {
-          const dbInstance = e.target.result;
-          if (!dbInstance.objectStoreNames.contains('media_files')) {
-            dbInstance.createObjectStore('media_files');
-          }
-        };
-        req.onsuccess = (e) => {
-          db = e.target.result;
-          resolve(db);
-        };
-        req.onerror = (e) => reject(e);
-      });
-    }
-
-    function storeFileToIndexedDB(id, fileBlob) {
-      if (!db) return;
-      const tx = db.transaction('media_files', 'readwrite');
-      tx.objectStore('media_files').put(fileBlob, id);
-    }
-
-    function getFileFromIndexedDB(id) {
-      return new Promise((resolve) => {
-        if (!db) return resolve(null);
-        const tx = db.transaction('media_files', 'readonly');
-        const req = tx.objectStore('media_files').get(id);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      });
-    }
-
-    function deleteFileFromIndexedDB(id) {
-      if (!db) return;
-      const tx = db.transaction('media_files', 'readwrite');
-      tx.objectStore('media_files').delete(id);
-    }
-
-    let keepAliveAudio = null;
-    function enableBackgroundKeepAlive() {
-      if (!keepAliveAudio) {
-        initAudioContext();
-        try {
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          gain.gain.value = 0.0001;
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start();
-          keepAliveAudio = osc;
-        } catch (e) {}
-      }
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        if (isStudioMode) {
-          captureProgramSnapshot();
-          if (!programRenderAnimFrame) startProgramRenderLoop();
-        }
-        const curMedia = getActiveMediaElement();
-        if (curMedia && curMedia.paused && isStreaming) {
-          curMedia.play().catch(() => {});
-        }
-      }
-    });
-
-    window.addEventListener('focus', () => {
-      if (isStudioMode) captureProgramSnapshot();
-    });
-
-    let scenesData = {
-      'scene-1': { name: 'Scene 1', sources: [] }
-    };
-
-    function saveLayoutToStorage() {
-      const state = {
-        sceneCounter: sceneCounter,
-        sourceCounter: sourceCounter,
-        activeSceneId: activeSceneId,
-        programSceneId: programSceneId,
-        isStudioMode: isStudioMode,
-        scenesData: scenesData
-      };
-      try {
-        localStorage.setItem('obs_layout_state', JSON.stringify(state));
-      } catch (e) {}
-    }
-
-    async function loadLayoutFromStorage() {
-      await initIndexedDB();
-      const raw = localStorage.getItem('obs_layout_state');
-      if (!raw) return;
-      try {
-        const state = JSON.parse(raw);
-        sceneCounter = state.sceneCounter || 1;
-        sourceCounter = state.sourceCounter || 0;
-        scenesData = state.scenesData || { 'scene-1': { name: 'Scene 1', sources: [] } };
-        activeSceneId = state.activeSceneId || 'scene-1';
-        programSceneId = state.programSceneId || 'scene-1';
-
-        const list = document.getElementById('scenes-list');
-        list.innerHTML = '';
-        Object.keys(scenesData).forEach(sId => {
-          const sc = scenesData[sId];
-          const item = document.createElement('div');
-          item.className = 'list-row' + (sId === activeSceneId ? ' active' : '');
-          item.dataset.sceneId = sId;
-          item.innerText = sc.name;
-          item.onclick = () => switchScene(sId, item);
-          list.appendChild(item);
-
-          let canvas = document.getElementById('canvas-' + sId);
-          if (!canvas) {
-            canvas = document.createElement('div');
-            canvas.className = 'scene-canvas' + (sId === activeSceneId ? ' active' : '');
-            canvas.id = 'canvas-' + sId;
-            canvas.innerHTML = '<div class="scene-empty" id="empty-' + sId + '">' + sc.name.toUpperCase() + ' (EMPTY)</div>';
-            document.getElementById('screen-display').appendChild(canvas);
-          }
-        });
-
-        for (const sId of Object.keys(scenesData)) {
-          const sc = scenesData[sId];
-          const canvas = document.getElementById('canvas-' + sId);
-          const emptyLabel = document.getElementById('empty-' + sId);
-
-          if (sc.sources.length > 0 && emptyLabel) emptyLabel.style.display = 'none';
-
-          for (const s of sc.sources) {
-            let box = document.getElementById(s.id);
-            if (!box) {
-              box = createBoxWrapper(s.id);
-              if (s.transform) {
-                box.style.left = s.transform.left || '0px';
-                box.style.top = s.transform.top || '0px';
-                box.style.width = s.transform.width || '100%';
-                box.style.height = s.transform.height || '100%';
-              }
-              canvas.appendChild(box);
-            }
-
-            if (s.type === 'video' || s.type === 'image' || s.type === 'audio') {
-              const fileBlob = await getFileFromIndexedDB(s.id);
-              if (fileBlob) {
-                const fileURL = URL.createObjectURL(fileBlob);
-                if (s.type === 'video') {
-                  const isMJPEG = url.includes("/video") || url.includes("videofeed") || url.includes("mjpg");
-        const video = document.createElement("iframe"); video.style.border = "none"; video.style.pointerEvents = "none";
-        if (isMJPEG) {
-            video.crossOrigin = "anonymous";
-            video.style.width = "100%";
-            video.style.height = "100%";
-            video.style.objectFit = "cover";
-        }
-                  video.src = fileURL;
-                  video.className = 'media-layer';
-                  video.loop = true;
-                  video.autoplay = true;
-                  video.playsInline = true;
-                  box.appendChild(video);
-                  attachMediaToAudioMixer(video, s.id, s.name);
-                } else if (s.type === 'image') {
-                  const img = document.createElement('img');
-                  img.src = fileURL;
-                  img.className = 'media-layer';
-                  box.appendChild(img);
-                } else if (s.type === 'audio') {
-                  const audio = document.createElement('audio');
-                  audio.src = fileURL;
-                  audio.autoplay = true;
-                  audio.loop = true;
-                  box.appendChild(audio);
-                  attachMediaToAudioMixer(audio, s.id, s.name);
-                }
-              }
-            } else if (s.type === 'text') {
-              const marquee = document.createElement('marquee');
-              marquee.className = 'marquee-layer';
-              marquee.innerText = s.extraText || 'LIVE BROADCAST';
-              marquee.scrollAmount = 5;
-              box.appendChild(marquee);
-            }
-          }
-        }
-
-        renderSourcesList();
-        if (state.isStudioMode) toggleStudioMode();
-        setTimeout(captureProgramSnapshot, 400);
-      } catch (e) {
-        console.error('Gagal memulihkan layout:', e);
-      }
-    }
-
-    let frameCount = 0;
-    let lastFpsTime = performance.now();
-    let currentFps = 60.00;
-    let totalFrameDuration = 0;
-    let lastRenderTimestamp = performance.now();
-    let bytesRecordedInSecond = 0;
-    let currentKbits = 0;
-    let isUserScrubbing = false;
-
-    let audioCtx = null;
-    const modernAudioChannels = {};
-
-    function initAudioContext() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
-    window.addEventListener('pointerdown', initAudioContext, { once: true });
-
-    function startMicCapture() {
-      initAudioContext();
-      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-        .then(stream => {
-          const micSource = audioCtx.createMediaStreamSource(stream);
-          const gainNode = audioCtx.createGain();
-          const analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 64;
-
-          micSource.connect(gainNode);
-          gainNode.connect(analyser);
-
-          modernAudioChannels['mic'] = {
-            gainNode: gainNode,
-            analyser: analyser,
-            sourceNode: micSource,
-            isMuted: false,
-            volume: 1,
-            peak: 0
-          };
-          document.getElementById('mac-db-mic').innerText = '0.0 dB';
-        })
-        .catch(err => {
-          alert('Izin mikrofon belum diberikan: ' + err.message);
-        });
-    }
-
-    function onPlatformChange(val) {
-      const urlInput = document.getElementById('setting-rtmp-url');
-      const keyInput = document.getElementById('setting-stream-key');
-
-      if (val === 'facebook') {
-        urlInput.value = 'rtmps://live-api-s.facebook.com:443/rtmp/';
-        keyInput.placeholder = 'Tempel Stream Key Facebook';
-      } else if (val === 'youtube') {
-        urlInput.value = 'rtmp://a.rtmp.youtube.com/live2';
-        keyInput.placeholder = 'Tempel Stream Key YouTube';
-      } else if (val === 'tiktok') {
-        urlInput.value = 'rtmp://live-push.tiktok.com/live/';
-        keyInput.placeholder = 'Tempel Stream Key TikTok';
-      } else {
-        urlInput.value = '';
-        keyInput.placeholder = 'Masukkan Stream Key custom';
-      }
-    }
-
-    function getActiveMediaElement() {
-      if (activeBox) {
-        const m = activeBox.querySelector('video, audio');
-        if (m) return m;
-      }
-      const canvas = document.getElementById('canvas-' + activeSceneId);
-      return canvas ? canvas.querySelector('video, audio') : null;
-    }
-
-    function toggleActiveMediaPlay() {
-      const media = getActiveMediaElement();
-      if (!media) return;
-      const btn = document.getElementById('btn-media-play');
-      if (media.paused) {
-        media.play().catch(() => {});
-        btn.innerText = '⏸';
-      } else {
-        media.pause();
-        btn.innerText = '▶';
-      }
-    }
-
-    function restartActiveMedia() {
-      const media = getActiveMediaElement();
-      if (!media) return;
-      media.currentTime = 0;
-      media.play().catch(() => {});
-      document.getElementById('btn-media-play').innerText = '⏸';
-    }
-
-    function stopActiveMedia() {
-      const media = getActiveMediaElement();
-      if (!media) return;
-      media.pause();
-      media.currentTime = 0;
-      document.getElementById('btn-media-play').innerText = '▶';
-      document.getElementById('media-seeker').value = 0;
-      updateScrubberFill(0);
-    }
-
-    function seekActiveMedia(val) {
-      const media = getActiveMediaElement();
-      if (!media || !media.duration) return;
-      media.currentTime = (val / 1000) * media.duration;
-    }
-
-    function updateScrubberFill(val) {
-      const pct = (val / 1000) * 100;
-      const seeker = document.getElementById('media-seeker');
-      seeker.style.background = 'linear-gradient(to right, #5865f2 0%, #5865f2 ' + pct + '%, #232532 ' + pct + '%, #232532 100%)';
-    }
-
-    function formatMediaTime(sec) {
-      if (isNaN(sec) || !isFinite(sec)) return '00:00';
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60);
-      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-    }
-
-    function trackSmoothMediaBar() {
-      const media = getActiveMediaElement();
-      const seeker = document.getElementById('media-seeker');
-      const timeLbl = document.getElementById('media-time-display');
-      const playBtn = document.getElementById('btn-media-play');
-
-      if (media && media.duration && isFinite(media.duration)) {
-        if (!isUserScrubbing) {
-          const cur = media.currentTime || 0;
-          const dur = media.duration || 0;
-          const val = (cur / dur) * 1000;
-          seeker.value = val;
-          updateScrubberFill(val);
-          timeLbl.innerText = formatMediaTime(cur) + ' / ' + formatMediaTime(dur);
-        }
-        playBtn.innerText = media.paused ? '▶' : '⏸';
-      } else {
-        if (!isUserScrubbing) {
-          timeLbl.innerText = '--:-- / --:--';
-          seeker.value = 0;
-          updateScrubberFill(0);
-        }
-      }
-      requestAnimationFrame(trackSmoothMediaBar);
-    }
-    requestAnimationFrame(trackSmoothMediaBar);
-
-    async function handleFullscreenClick() {
-      initAudioContext();
-      enableBackgroundKeepAlive();
-      const docEl = document.documentElement;
-      const fsBtn = document.getElementById('fs-toggle-btn');
-      try {
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          if (docEl.requestFullscreen) await docEl.requestFullscreen();
-          else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
-          if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
-          if (fsBtn) fsBtn.innerText = '⛶ Exit Fullscreen';
-        } else {
-          if (document.exitFullscreen) await document.exitFullscreen();
-          else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
-          if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-          if (fsBtn) fsBtn.innerText = '⛶ ';
-        }
-      } catch (err) {}
-    }
-
-    document.addEventListener('fullscreenchange', () => {
-      const fsBtn = document.getElementById('fs-toggle-btn');
-      if (!document.fullscreenElement && fsBtn) fsBtn.innerText = '⛶ ';
-    });
-
-    function openCustomPrompt(title, label, defaultValue, onConfirm) {
-      document.getElementById('prompt-modal-title').innerText = title;
-      document.getElementById('prompt-modal-label').innerText = label;
-      const input = document.getElementById('prompt-modal-input');
-      input.value = defaultValue || '';
-      currentPromptCallback = onConfirm;
-
-      document.getElementById('prompt-modal-ok').onclick = () => {
-        const val = input.value.trim();
-        if (val && currentPromptCallback) currentPromptCallback(val);
-        closeCustomPrompt();
-      };
-      document.getElementById('custom-prompt-modal').style.display = 'flex';
-      setTimeout(() => input.focus(), 50);
-    }
-
-    function closeCustomPrompt() {
-      document.getElementById('custom-prompt-modal').style.display = 'none';
-      currentPromptCallback = null;
-    }
-
-    function openSettingsDialog() { document.getElementById('settings-modal').style.display = 'flex'; }
-    function closeSettingsDialog() { document.getElementById('settings-modal').style.display = 'none'; }
-    
-    function saveSettings() {
-      const platform = document.getElementById('setting-platform').value;
-      const url = document.getElementById('setting-rtmp-url').value;
-      const key = document.getElementById('setting-stream-key').value;
-      const vBitrate = document.getElementById('setting-vbitrate').value;
-      const aBitrate = document.getElementById('setting-abitrate').value;
-
-      fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: platform,
-          rtmpUrl: url,
-          streamKey: key,
-          videoBitrate: vBitrate,
-          audioBitrate: aBitrate
-        })
-      }).then(() => {
-        closeSettingsDialog();
-      });
-    }
-
-    function openFilterDialog() {
-      if (!activeBox) {
-        alert("Pilih salah satu Source terlebih dahulu!");
-        return;
-      }
-      document.getElementById('filter-modal').style.display = 'flex';
-    }
-    function closeFilterDialog() { document.getElementById('filter-modal').style.display = 'none'; }
-    function applyVisualFilter(type, val) {
-      if (!activeBox) return;
-      document.getElementById('val-' + type).innerText = val + '%';
-      if (!activeBox.dataset.filters) activeBox.dataset.filters = JSON.stringify({ opacity: 100, brightness: 100, contrast: 100 });
-      let f = JSON.parse(activeBox.dataset.filters);
-      f[type] = val;
-      activeBox.dataset.filters = JSON.stringify(f);
-      activeBox.style.filter = 'opacity(' + (f.opacity/100) + ') brightness(' + (f.brightness/100) + ') contrast(' + (f.contrast/100) + ')';
-      saveLayoutToStorage();
-    }
-
-    function attachMediaToAudioMixer(mediaElement, id, name) {
-      initAudioContext();
-      try {
-        const sourceNode = audioCtx.createMediaElementSource(mediaElement);
-        const gainNode = audioCtx.createGain();
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-
-        sourceNode.connect(gainNode);
-        gainNode.connect(analyser);
-        analyser.connect(audioCtx.destination);
-
-        modernAudioChannels[id] = {
-          gainNode: gainNode,
-          analyser: analyser,
-          sourceNode: sourceNode,
-          isMuted: false,
-          volume: 1,
-          peak: 0
-        };
-
-        createModernAudioStripUI(id, name);
-      } catch (err) {}
-    }
-
-    function createModernAudioStripUI(id, name) {
-      const container = document.getElementById('mixer-channels-list');
-      if (document.getElementById('mac-' + id)) return;
-
-      const channel = document.createElement('div');
-      channel.className = 'mixer-channel dynamic-channel';
-      channel.id = 'mac-' + id;
-      channel.innerHTML = '<div class="ch-top">' +
-          '<div class="ch-title-grp">' +
-            '<span class="ch-name" title="' + name + '">' + name + '</span>' +
-            '<span class="ch-db" id="mac-db-' + id + '">0.0 dB</span>' +
-          '</div>' +
-          '<div class="ch-btns">' +
-            '<button class="ch-btn" id="mac-mute-' + id + '" onclick="toggleModernMute(\\'' + id + '\\')">🔊</button>' +
-            '<button class="ch-btn">⚙</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="ch-meter-track">' +
-          '<div class="ch-meter-val" id="mac-fill-' + id + '"></div>' +
-          '<div class="ch-peak-pin" id="mac-peak-' + id + '"></div>' +
-        '</div>' +
-        '<input type="range" class="ch-slider" min="0" max="100" value="100" oninput="changeModernGain(\\'' + id + '\\', this.value)">';
-      container.appendChild(channel);
-    }
-
-    function changeModernGain(id, val) {
-      const num = parseInt(val);
-      const dbLabel = document.getElementById('mac-db-' + id);
-      const fraction = num / 100;
-      const db = fraction === 0 ? '-inf dB' : (20 * Math.log10(fraction)).toFixed(1) + ' dB';
-      if (dbLabel) dbLabel.innerText = db;
-
-      if (modernAudioChannels[id]) {
-        modernAudioChannels[id].volume = fraction;
-        if (!modernAudioChannels[id].isMuted) {
-          modernAudioChannels[id].gainNode.gain.setValueAtTime(fraction, audioCtx.currentTime);
-        }
-      }
-    }
-
-    function toggleModernMute(id) {
-      const btn = document.getElementById('mac-mute-' + id);
-      if (modernAudioChannels[id]) {
-        modernAudioChannels[id].isMuted = !modernAudioChannels[id].isMuted;
-        const targetGain = modernAudioChannels[id].isMuted ? 0 : modernAudioChannels[id].volume;
-        modernAudioChannels[id].gainNode.gain.setValueAtTime(targetGain, audioCtx.currentTime);
-        btn.innerText = modernAudioChannels[id].isMuted ? '🔇' : '🔊';
-        btn.classList.toggle('muted', modernAudioChannels[id].isMuted);
-      }
-    }
-
-    function startModernAudioMetering() {
-      const pcmData = new Uint8Array(32);
-      const updateMeters = () => {
-        Object.keys(modernAudioChannels).forEach(id => {
-          const ch = modernAudioChannels[id];
-          const fill = document.getElementById('mac-fill-' + id);
-          const peak = document.getElementById('mac-peak-' + id);
-          if (!fill || ch.isMuted) {
-            if (fill) fill.style.width = '0%';
-            if (peak) peak.style.left = '0%';
-            return;
-          }
-          ch.analyser.getByteFrequencyData(pcmData);
-          let sum = 0;
-          for (let i = 0; i < pcmData.length; i++) sum += pcmData[i];
-          const avg = sum / pcmData.length;
-          
-          const pct = Math.min(100, Math.max(0, (avg / 128) * 100));
-          fill.style.width = (pct > 2 ? pct : 0) + '%';
-
-          if (pct > ch.peak) ch.peak = pct;
-          else ch.peak = Math.max(0, ch.peak - 1.5);
-          if (peak) peak.style.left = ch.peak + '%';
-        });
-
-        if (!modernAudioChannels['mic']) {
-          const fMic = document.getElementById('mac-fill-mic');
-          const pMic = document.getElementById('mac-peak-mic');
-          if (fMic) fMic.style.width = '0%';
-          if (pMic) pMic.style.left = '0%';
-        }
-
-        requestAnimationFrame(updateMeters);
-      };
-      requestAnimationFrame(updateMeters);
-    }
-    startModernAudioMetering();
-
-    function captureProgramSnapshot() {
-      programSceneId = activeSceneId;
-      const activeCanvas = document.getElementById('canvas-' + programSceneId);
-      if (!activeCanvas) {
-        programStateSnapshot = [];
-        return;
-      }
-
-      const parentRect = activeCanvas.getBoundingClientRect();
-      const boxes = activeCanvas.querySelectorAll('.transform-box');
-      
-      programStateSnapshot = [];
-      boxes.forEach(box => {
-        if (box.style.display === 'none') return;
-        const rect = box.getBoundingClientRect();
-        const media = box.querySelector('video, img');
-        const marquee = box.querySelector('marquee');
-
-        programStateSnapshot.push({
-          sourceId: box.id,
-          rx: (rect.left - parentRect.left) / (parentRect.width || 1),
-          ry: (rect.top - parentRect.top) / (parentRect.height || 1),
-          rw: rect.width / (parentRect.width || 1),
-          rh: rect.height / (parentRect.height || 1),
-          flipped: box.dataset.flipped === 'true',
-          filters: box.dataset.filters ? JSON.parse(box.dataset.filters) : null,
-          mediaElement: media,
-          text: marquee ? marquee.innerText : null,
-          scrollOffset: 0
-        });
-      });
-    }
-
-    function toggleStudioMode() {
-      isStudioMode = !isStudioMode;
-      const btn = document.getElementById('studio-mode-btn');
-      const pTag = document.getElementById('preview-tag');
-      const pWrapper = document.getElementById('program-wrapper');
-      const sCtrls = document.getElementById('studio-controls');
-
-      if (isStudioMode) {
-        btn.classList.add('btn-studio');
-        pTag.style.display = 'block';
-        pWrapper.style.display = 'flex';
-        sCtrls.style.display = 'flex';
-        captureProgramSnapshot();
-        startProgramRenderLoop();
-      } else {
-        btn.classList.remove('btn-studio');
-        pTag.style.display = 'none';
-        pWrapper.style.display = 'none';
-        sCtrls.style.display = 'none';
-        programSceneId = activeSceneId;
-        if (programRenderAnimFrame) {
-          cancelAnimationFrame(programRenderAnimFrame);
-          programRenderAnimFrame = null;
-        }
-      }
-      saveLayoutToStorage();
-    }
-
-    function executeStudioTransition(mode) {
-      const transType = mode || document.getElementById('transition-type').value;
-      const transMs = parseInt(document.getElementById('transition-ms').value) || 300;
-      const pDisplay = document.getElementById('program-display');
-
-      if (transType === 'Fade') {
-        pDisplay.style.transition = 'opacity ' + (transMs / 1000) + 's ease';
-        pDisplay.style.opacity = '0';
-        setTimeout(() => {
-          captureProgramSnapshot();
-          pDisplay.style.opacity = '1';
-        }, transMs / 2);
-      } else {
-        pDisplay.style.transition = 'none';
-        captureProgramSnapshot();
-      }
-    }
-
-    function startProgramRenderLoop() {
-      const canvas = document.getElementById('program-feed-canvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-
-      const render = () => {
-        if (!isStudioMode) {
-          programRenderAnimFrame = null;
-          return;
-        }
-
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        programStateSnapshot.forEach(item => {
-          const x = item.rx * canvas.width;
-          const y = item.ry * canvas.height;
-          const w = item.rw * canvas.width;
-          const h = item.rh * canvas.height;
-
-          ctx.save();
-          if (item.filters) {
-            ctx.filter = 'opacity(' + (item.filters.opacity/100) + ') brightness(' + (item.filters.brightness/100) + ') contrast(' + (item.filters.contrast/100) + ')';
-          }
-
-          if (item.mediaElement) {
-            if (item.flipped) {
-              ctx.translate(x + w, y);
-              ctx.scale(-1, 1);
-              try { ctx.drawImage(item.mediaElement, 0, 0, w, h); } catch(e){}
-            } else {
-              try { ctx.drawImage(item.mediaElement, x, y, w, h); } catch(e){}
-            }
-          }
-
-          if (item.text) {
-            ctx.beginPath();
-            ctx.rect(x, y, w, h);
-            ctx.clip();
-
-            const fontSize = Math.max(14, Math.floor(h * 0.72));
-            ctx.font = 'bold ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillStyle = '#ffffff';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.shadowBlur = 4;
-
-            const textWidth = ctx.measureText(item.text).width;
-            item.scrollOffset = (item.scrollOffset || 0) + 3;
-            if (item.scrollOffset > textWidth + w) item.scrollOffset = 0;
-
-            const drawX = (x + w) - item.scrollOffset;
-            const drawY = y + (h / 2);
-            ctx.fillText(item.text, drawX, drawY);
-          }
-
-          ctx.restore();
-        });
-
-        programRenderAnimFrame = requestAnimationFrame(render);
-      };
-      render();
-    }
-
-    function renderMasterFrame() {
-      const masterCanvas = document.getElementById('master-render-canvas');
-      const mCtx = masterCanvas.getContext('2d');
-
-      mCtx.fillStyle = '#000';
-      mCtx.fillRect(0, 0, masterCanvas.width, masterCanvas.height);
-
-      if (isStudioMode) {
-        programStateSnapshot.forEach(item => {
-          const x = item.rx * masterCanvas.width;
-          const y = item.ry * masterCanvas.height;
-          const w = item.rw * masterCanvas.width;
-          const h = item.rh * masterCanvas.height;
-
-          mCtx.save();
-          if (item.filters) {
-            mCtx.filter = 'opacity(' + (item.filters.opacity/100) + ') brightness(' + (item.filters.brightness/100) + ') contrast(' + (item.filters.contrast/100) + ')';
-          }
-
-          if (item.mediaElement) {
-            if (item.flipped) {
-              mCtx.translate(x + w, y);
-              mCtx.scale(-1, 1);
-              try { mCtx.drawImage(item.mediaElement, 0, 0, w, h); } catch(e){}
-            } else {
-              try { mCtx.drawImage(item.mediaElement, x, y, w, h); } catch(e){}
-            }
-          }
-
-          if (item.text) {
-            mCtx.beginPath();
-            mCtx.rect(x, y, w, h);
-            mCtx.clip();
-
-            const fontSize = Math.max(14, Math.floor(h * 0.72));
-            mCtx.font = 'bold ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            mCtx.fillStyle = '#ffffff';
-            mCtx.textBaseline = 'middle';
-            mCtx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            mCtx.shadowOffsetX = 2;
-            mCtx.shadowOffsetY = 2;
-            mCtx.shadowBlur = 4;
-
-            const drawX = (x + w) - (item.scrollOffset || 0);
-            const drawY = y + (h / 2);
-            mCtx.fillText(item.text, drawX, drawY);
-          }
-
-          mCtx.restore();
-        });
-      } else {
-        const activeCanvas = document.getElementById('canvas-' + activeSceneId);
-        if (activeCanvas) {
-          const boxes = activeCanvas.querySelectorAll('.transform-box');
-          boxes.forEach(box => {
-            if (box.style.display === 'none') return;
-            const rect = box.getBoundingClientRect();
-            const parentRect = activeCanvas.getBoundingClientRect();
-
-            const x = ((rect.left - parentRect.left) / (parentRect.width || 1)) * masterCanvas.width;
-            const y = ((rect.top - parentRect.top) / (parentRect.height || 1)) * masterCanvas.height;
-            const w = (rect.width / (parentRect.width || 1)) * masterCanvas.width;
-            const h = (rect.height / (parentRect.height || 1)) * masterCanvas.height;
-
-            mCtx.save();
-            if (box.dataset.filters) {
-              let f = JSON.parse(box.dataset.filters);
-              mCtx.filter = 'opacity(' + (f.opacity/100) + ') brightness(' + (f.brightness/100) + ') contrast(' + (f.contrast/100) + ')';
-            }
-
-            const media = box.querySelector('video, img');
-            if (media) {
-              if (box.dataset.flipped === 'true') {
-                mCtx.translate(x + w, y);
-                mCtx.scale(-1, 1);
-                try { mCtx.drawImage(media, 0, 0, w, h); } catch(e){}
-              } else {
-                try { mCtx.drawImage(media, x, y, w, h); } catch(e){}
-              }
-            }
-
-            const marquee = box.querySelector('marquee');
-            if (marquee) {
-              mCtx.beginPath();
-              mCtx.rect(x, y, w, h);
-              mCtx.clip();
-
-              const fontSize = Math.max(14, Math.floor(h * 0.72));
-              mCtx.font = 'bold ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-              mCtx.fillStyle = '#ffffff';
-              mCtx.textBaseline = 'middle';
-              mCtx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-              mCtx.shadowOffsetX = 2;
-              mCtx.shadowOffsetY = 2;
-              mCtx.shadowBlur = 4;
-
-              const textWidth = mCtx.measureText(marquee.innerText).width;
-              if (masterTextScroll > textWidth + w) masterTextScroll = 0;
-
-              const drawX = (x + w) - masterTextScroll;
-              const drawY = y + (h / 2);
-              mCtx.fillText(marquee.innerText, drawX, drawY);
-            }
-
-            mCtx.restore();
-          });
-        }
-      }
-    }
-
-    function startRealCanvasRecording() {
-      const masterCanvas = document.getElementById('master-render-canvas');
-      recordedChunks = [];
-
-      const recordLoop = () => {
-        if (!isRecording) return;
-        renderMasterFrame();
-        requestAnimationFrame(recordLoop);
-      };
-
-      const stream = masterCanvas.captureStream(30);
-      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
-      mediaRecorder.ondataavailable = (e) => { 
-        if (e.data.size > 0) {
-          recordedChunks.push(e.data);
-          bytesRecordedInSecond += e.data.size;
-        }
-      };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'OBS-Recording-' + new Date().toISOString().replace(/[:.]/g, '-') + '.webm';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      };
-
-      mediaRecorder.start(1000);
-      recordLoop();
-    }
-
-    function toggleRealRecord() {
-      const btn = document.getElementById('record-btn');
-      const dot = document.getElementById('rec-dot');
-      isRecording = !isRecording;
-      if (isRecording) {
-        btn.innerText = "Stop Recording";
-        btn.classList.add('btn-rec');
-        dot.classList.add('active');
-        recStartTime = Date.now();
-        startRealCanvasRecording();
-        recTimer = setInterval(() => {
-          const diff = Math.floor((Date.now() - recStartTime) / 1000);
-          document.getElementById('rec-indicator').innerText = formatTime(diff);
-        }, 500);
-      } else {
-        btn.innerText = "Start Recording";
-        btn.classList.remove('btn-rec');
-        dot.classList.remove('active');
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-        clearInterval(recTimer);
-        document.getElementById('rec-indicator').innerText = "00:00:00";
-      }
-    }
-
-    function toggleLiveStreaming() {
-      const btn = document.getElementById('stream-btn');
-      const dot = document.getElementById('live-dot');
-      isStreaming = !isStreaming;
-
-      if (isStreaming) {
-        enableBackgroundKeepAlive();
-        btn.innerText = "Stop Streaming";
-        btn.classList.add('btn-live');
-        dot.classList.add('active');
-        streamStartTime = Date.now();
-
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        liveWs = new WebSocket(protocol + '//' + window.location.host + '/ws/stream');
-        liveWs.binaryType = 'arraybuffer';
-
-        liveWs.onopen = () => {
-          const masterCanvas = document.getElementById('master-render-canvas');
-          const stream = masterCanvas.captureStream(30);
-
-          if (audioCtx) {
-            const dest = audioCtx.createMediaStreamDestination();
-            Object.keys(modernAudioChannels).forEach(id => {
-              if (modernAudioChannels[id] && !modernAudioChannels[id].isMuted) {
-                modernAudioChannels[id].gainNode.connect(dest);
-              }
-            });
-            dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-          }
-
-          liveMediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'video/webm;codecs=vp8,opus',
-            videoBitsPerSecond: 4000000
-          });
-
-          liveMediaRecorder.ondataavailable = async (e) => {
-            if (e.data.size > 0 && liveWs && liveWs.readyState === WebSocket.OPEN) {
-              const buffer = await e.data.arrayBuffer();
-              liveWs.send(buffer);
-            }
-          };
-
-          const backgroundRenderInterval = setInterval(() => {
-            if (!isStreaming) {
-              clearInterval(backgroundRenderInterval);
-              return;
-            }
-            renderMasterFrame();
-          }, 1000 / 30);
-
-          const streamLoop = () => {
-            if (!isStreaming) return;
-            renderMasterFrame();
-            requestAnimationFrame(streamLoop);
-          };
-
-          liveMediaRecorder.start(1000);
-          streamLoop();
-        };
-
-        liveWs.onerror = (err) => {
-          console.error('[WEBSOCKET ERROR]:', err);
-        };
-
-        streamTimer = setInterval(() => {
-          const diff = Math.floor((Date.now() - streamStartTime) / 1000);
-          document.getElementById('live-indicator').innerText = formatTime(diff);
-        }, 500);
-      } else {
-        btn.innerText = "Start Streaming";
-        btn.classList.remove('btn-live');
-        dot.classList.remove('active');
-        if (liveMediaRecorder && liveMediaRecorder.state !== 'inactive') liveMediaRecorder.stop();
-        if (liveWs) {
-          liveWs.close();
-          liveWs = null;
-        }
-        clearInterval(streamTimer);
-        document.getElementById('live-indicator').innerText = "00:00:00";
-      }
-    }
-
-    function switchScene(sceneId, el) {
-      if (activeSceneId === sceneId && el) return;
-      const transType = document.getElementById('transition-type').value;
-      const transMs = parseInt(document.getElementById('transition-ms').value) || 300;
-
-      const prevCanvas = document.getElementById('canvas-' + activeSceneId);
-      const nextCanvas = document.getElementById('canvas-' + sceneId);
-
-      if (activeBox) activeBox.classList.remove('selected');
-      activeBox = null;
-
-      if (!isStudioMode && transType === 'Fade' && prevCanvas && nextCanvas) {
-        nextCanvas.style.opacity = 0;
-        nextCanvas.classList.add('active');
-        setTimeout(() => { nextCanvas.style.opacity = 1; }, 10);
-        setTimeout(() => {
-          if (prevCanvas) {
-            prevCanvas.classList.remove('active');
-            prevCanvas.style.opacity = 1;
-          }
-        }, transMs);
-      } else {
-        if (prevCanvas) prevCanvas.classList.remove('active');
-        if (nextCanvas) nextCanvas.classList.add('active');
-      }
-
-      activeSceneId = sceneId;
-      document.querySelectorAll('#scenes-list .list-row').forEach(i => i.classList.remove('active'));
-      if (el) el.classList.add('active');
-
-      renderSourcesList();
-      if (!isStudioMode) programSceneId = activeSceneId;
-      saveLayoutToStorage();
-    }
-
-    function confirmAddScene(name) {
-      sceneCounter++;
-      const sceneId = 'scene-' + sceneCounter;
-      scenesData[sceneId] = { name: name, sources: [] };
-
-      const canvas = document.createElement('div');
-      canvas.className = 'scene-canvas';
-      canvas.id = 'canvas-' + sceneId;
-      canvas.innerHTML = '<div class="scene-empty" id="empty-' + sceneId + '">' + name.toUpperCase() + ' (EMPTY)</div>';
-      document.getElementById('screen-display').appendChild(canvas);
-
-      const list = document.getElementById('scenes-list');
-      const item = document.createElement('div');
-      item.className = 'list-row';
-      item.dataset.sceneId = sceneId;
-      item.innerText = name;
-      item.onclick = () => switchScene(sceneId, item);
-      list.appendChild(item);
-
-      switchScene(sceneId, item);
-      saveLayoutToStorage();
-    }
-
-    function removeActiveScene() {
-      const sceneKeys = Object.keys(scenesData);
-      if (sceneKeys.length <= 1) return;
-
-      const canvas = document.getElementById('canvas-' + activeSceneId);
-      if (canvas) canvas.remove();
-
-      const listItem = document.querySelector('#scenes-list [data-scene-id="' + activeSceneId + '"]');
-      if (listItem) listItem.remove();
-
-      delete scenesData[activeSceneId];
-      const nextSceneId = Object.keys(scenesData)[0];
-      const nextListItem = document.querySelector('#scenes-list [data-scene-id="' + nextSceneId + '"]');
-      switchScene(nextSceneId, nextListItem);
-      saveLayoutToStorage();
-    }
-
-    function renderSourcesList() {
-      const list = document.getElementById('sources-list');
-      list.innerHTML = '';
-      const currentSources = scenesData[activeSceneId] ? scenesData[activeSceneId].sources : [];
-
-      currentSources.forEach((s, idx) => {
-        const item = document.createElement('div');
-        item.className = 'list-row' + (activeBox && activeBox.id === s.id ? ' active' : '');
-        item.dataset.targetId = s.id;
-        item.innerHTML = '<span>' + s.name + '</span><div class="row-actions">' +
-          '<span onclick="toggleVisibility(this, \\'' + s.id + '\\')">' + (s.visible ? '👁' : '🚫') + '</span>' +
-          '<span onclick="toggleLock(this, \\'' + s.id + '\\')">' + (s.locked ? '🔒' : '🔓') + '</span>' +
-          '</div>';
-        item.onclick = (e) => {
-          if (e.target.tagName !== 'SPAN') {
-            const el = document.getElementById(s.id);
-            if (el) selectBox(el);
-          }
-        };
-        list.appendChild(item);
-
-        const el = document.getElementById(s.id);
-        if (el) el.style.zIndex = 100 + (currentSources.length - idx);
-      });
-    }
-
-    function flipActiveSource() {
-      if (!activeBox) return;
-      const isFlipped = activeBox.dataset.flipped === 'true';
-      activeBox.dataset.flipped = (!isFlipped).toString();
-      activeBox.style.transform = !isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
-      saveLayoutToStorage();
-    }
-
-    function moveLayerUp() {
-      if (!activeBox) return;
-      const sources = scenesData[activeSceneId].sources;
-      const idx = sources.findIndex(s => s.id === activeBox.id);
-      if (idx > 0) {
-        const temp = sources[idx];
-        sources[idx] = sources[idx - 1];
-        sources[idx - 1] = temp;
-        renderSourcesList();
-        saveLayoutToStorage();
-      }
-    }
-
-    function moveLayerDown() {
-      if (!activeBox) return;
-      const sources = scenesData[activeSceneId].sources;
-      const idx = sources.findIndex(s => s.id === activeBox.id);
-      if (idx !== -1 && idx < sources.length - 1) {
-        const temp = sources[idx];
-        sources[idx] = sources[idx + 1];
-        sources[idx + 1] = temp;
-        renderSourcesList();
-        saveLayoutToStorage();
-      }
-    }
-
-    function openSourceDialog() { document.getElementById('source-modal').style.display = 'flex'; }
-    function closeSourceDialog() { document.getElementById('source-modal').style.display = 'none'; }
-
-    function createBoxWrapper(id) {
-      const box = document.createElement('div');
-      box.id = id;
-      box.className = 'transform-box selected';
-      makeDraggable(box);
-      box.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        selectBox(box);
-      });
-      return box;
-    }
-
-    function selectBox(box) {
-      document.querySelectorAll('.transform-box').forEach(b => b.classList.remove('selected'));
-      box.classList.add('selected');
-      activeBox = box;
-      document.querySelectorAll('#sources-list .list-row').forEach(item => {
-        item.classList.toggle('active', item.dataset.targetId === box.id);
-      });
-    }
-
-    function deselectAll(e) {
-      if (e.target.id === 'screen-display' || e.target.classList.contains('scene-canvas')) {
-        document.querySelectorAll('.transform-box').forEach(b => b.classList.remove('selected'));
-        document.querySelectorAll('#sources-list .list-row').forEach(b => b.classList.remove('active'));
-        activeBox = null;
-      }
-    }
-
-    function makeDraggable(el) {
-      let isDragging = false;
-      let startX, startY, origLeft, origTop;
-      el.addEventListener('pointerdown', (e) => {
-        if (el.dataset.locked === 'true') return;
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        origLeft = el.offsetLeft;
-        origTop = el.offsetTop;
-        el.setPointerCapture(e.pointerId);
-      });
-      el.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        el.style.left = (origLeft + dx) + 'px';
-        el.style.top = (origTop + dy) + 'px';
-      });
-      el.addEventListener('pointerup', (e) => {
-        isDragging = false;
-        try { el.releasePointerCapture(e.pointerId); } catch(err) {}
-        updateTransformInMemory(el);
-      });
-    }
-
-    function updateTransformInMemory(el) {
-      const source = scenesData[activeSceneId].sources.find(s => s.id === el.id);
-      if (source) {
-        source.transform = {
-          left: el.style.left,
-          top: el.style.top,
-          width: el.style.width,
-          height: el.style.height
-        };
-        saveLayoutToStorage();
-      }
-    }
-
-    function scaleActiveSource(factor) {
-      if (!activeBox) return;
-      activeBox.style.width = (activeBox.offsetWidth * factor) + 'px';
-      activeBox.style.height = (activeBox.offsetHeight * factor) + 'px';
-      updateTransformInMemory(activeBox);
-    }
-
-    function centerActiveSource() {
-      if (!activeBox) return;
-      const display = document.getElementById('screen-display');
-      activeBox.style.left = ((display.offsetWidth - activeBox.offsetWidth) / 2) + 'px';
-      activeBox.style.top = ((display.offsetHeight - activeBox.offsetHeight) / 2) + 'px';
-      updateTransformInMemory(activeBox);
-    }
-
-    function fitActiveSource() {
-      if (!activeBox) return;
-      activeBox.style.top = '0px';
-      activeBox.style.left = '0px';
-      activeBox.style.width = '100%';
-      activeBox.style.height = '100%';
-      updateTransformInMemory(activeBox);
-    }
-
-    function registerSourceToActiveScene(name, elementId, boxElement, type, extra) {
-      const activeCanvas = document.getElementById('canvas-' + activeSceneId);
-      const emptyLabel = document.getElementById('empty-' + activeSceneId);
-      if (emptyLabel) emptyLabel.style.display = 'none';
-
-      activeCanvas.appendChild(boxElement);
-      scenesData[activeSceneId].sources.unshift({
-        id: elementId,
-        name: name,
-        type: type,
-        locked: false,
-        visible: true,
-        extraText: extra || null,
-        transform: {
-          left: boxElement.style.left || '0px',
-          top: boxElement.style.top || '0px',
-          width: boxElement.style.width || '100%',
-          height: boxElement.style.height || '100%'
-        }
-      });
-
-      renderSourcesList();
-      selectBox(boxElement);
-      saveLayoutToStorage();
-    }
-
-    function addCameraDevice(facing) {
-      closeSourceDialog();
-      navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: { exact: facing } }, 
-        audio: false 
-      })
-      .catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false }))
-      .then(stream => {
-        sourceCounter++;
-        const elementId = 'source-' + sourceCounter;
-        const box = createBoxWrapper(elementId);
-
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.className = 'media-layer';
-        video.autoplay = true;
-        video.muted = true;
-        video.playsInline = true;
-
-        box.appendChild(video);
-        registerSourceToActiveScene((facing === 'user' ? 'Cam: Depan' : 'Cam: Belakang'), elementId, box, 'camera');
-      })
-      .catch(err => {
-        alert("Gagal mengakses kamera (" + facing + "): " + err.message);
-      });
-    }
-
-    async function loadPersistentMedia(event, type) {
-      closeSourceDialog();
-      const file = event.target.files[0];
-      if (!file) return;
-
-      sourceCounter++;
-      const elementId = 'source-' + sourceCounter;
-      storeFileToIndexedDB(elementId, file);
-
-      const fileURL = URL.createObjectURL(file);
-      const box = createBoxWrapper(elementId);
-
-      if (type === 'video') {
-        const video = document.createElement('video');
-        video.src = fileURL;
-        video.className = 'media-layer';
-        video.loop = true;
-        video.autoplay = true;
-        video.playsInline = true;
-        video.preload = 'auto';
-
-        box.appendChild(video);
-        registerSourceToActiveScene("Video: " + file.name, elementId, box, 'video');
-        attachMediaToAudioMixer(video, elementId, "Video: " + file.name.substring(0, 10));
-      } else if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = fileURL;
-        img.className = 'media-layer';
-        box.appendChild(img);
-        registerSourceToActiveScene("Foto: " + file.name, elementId, box, 'image');
-      } else if (type === 'audio') {
-        const audio = document.createElement('audio');
-        audio.src = fileURL;
-        audio.autoplay = true;
-        audio.loop = true;
-        box.appendChild(audio);
-        audio.play();
-        registerSourceToActiveScene("Audio: " + file.name, elementId, box, 'audio');
-        attachMediaToAudioMixer(audio, elementId, "Audio: " + file.name.substring(0, 10));
-      }
-    }
-
-    function openTextDialog() {
-      closeSourceDialog();
-      openCustomPrompt('Running Text', 'Teks Pengumuman:', 'LIVE BROADCAST - ONLINE', (text) => {
-        sourceCounter++;
-        const elementId = 'source-' + sourceCounter;
-        const box = createBoxWrapper(elementId);
-        box.style.height = '35px';
-        box.style.top = '80%';
-
-        const marquee = document.createElement('marquee');
-        marquee.className = 'marquee-layer';
-        marquee.innerText = text;
-        marquee.scrollAmount = 5;
-        box.appendChild(marquee);
-
-        registerSourceToActiveScene("Teks: " + text.substring(0, 10) + "...", elementId, box, 'text', text);
-      });
-    }
-
-    function openRTMPDialog() {
-        closeSourceDialog();
-        openCustomPrompt("Media Stream URL", "URL RTMP / HLS / MJPEG:", "http://10.63.156.173:8080/video", (url) => {
-            sourceCounter++;
-            const elementId = "source-" + sourceCounter;
-            const box = createBoxWrapper(elementId);
-            const isMJPEG = url.includes("/video") || url.includes("videofeed") || url.includes("mjpg");
-            const mediaEl = document.createElement(isMJPEG ? "img" : "video");
-            
-            mediaEl.src = url;
-            mediaEl.className = "media-layer";
-            mediaEl.style.width = "100%";
-            mediaEl.style.height = "100%";
-            mediaEl.style.objectFit = "cover";
-            
-            if (isMJPEG) {
-                mediaEl.crossOrigin = "anonymous";
-            } else {
-                mediaEl.autoplay = true;
-                mediaEl.controls = false;
-                mediaEl.playsInline = true;
-                mediaEl.play().catch(() => {});
-            }
-            
-            box.appendChild(mediaEl);
-            registerSourceToActiveScene("Stream: " + url.substring(0, 12) + "...", elementId, box, "stream");
-            if (!isMJPEG) {
-                attachMediaToAudioMixer(mediaEl, elementId, "Stream " + sourceCounter);
-            }
-        });
-    }
-
-    function toggleVisibility(btn, elementId) {
-      const el = document.getElementById(elementId);
-      if (!el) return;
-      const sourceObj = scenesData[activeSceneId].sources.find(s => s.id === elementId);
-
-      if (el.style.display === 'none') {
-        el.style.display = '';
-        btn.innerText = '👁';
-        if (sourceObj) sourceObj.visible = true;
-      } else {
-        el.style.display = 'none';
-        btn.innerText = '🚫';
-        if (sourceObj) sourceObj.visible = false;
-      }
-      saveLayoutToStorage();
-    }
-
-    function toggleLock(btn, elementId) {
-      const el = document.getElementById(elementId);
-      if (!el) return;
-      const sourceObj = scenesData[activeSceneId].sources.find(s => s.id === elementId);
-
-      if (btn.innerText === '🔓') {
-        btn.innerText = '🔒';
-        el.dataset.locked = 'true';
-        if (sourceObj) sourceObj.locked = true;
-      } else {
-        btn.innerText = '🔓';
-        el.dataset.locked = 'false';
-        if (sourceObj) sourceObj.locked = false;
-      }
-      saveLayoutToStorage();
-    }
-
-    function removeActiveSource() {
-      if (!activeBox) return;
-      const targetId = activeBox.id;
-      activeBox.remove();
-      activeBox = null;
-
-      const sources = scenesData[activeSceneId].sources;
-      scenesData[activeSceneId].sources = sources.filter(s => s.id !== targetId);
-
-      if (scenesData[activeSceneId].sources.length === 0) {
-        const emptyLabel = document.getElementById('empty-' + activeSceneId);
-        if (emptyLabel) emptyLabel.style.display = 'block';
-      }
-
-      const channel = document.getElementById('mac-' + targetId);
-      if (channel) channel.remove();
-      if (modernAudioChannels[targetId]) delete modernAudioChannels[targetId];
-
-      deleteFileFromIndexedDB(targetId);
-      renderSourcesList();
-      saveLayoutToStorage();
-    }
-
-    function formatTime(sec) {
-      return new Date(sec * 1000).toISOString().substr(11, 8);
-    }
-
-    function trackRealtimeMetrics(now) {
-      frameCount++;
-      const frameDelta = now - lastRenderTimestamp;
-      lastRenderTimestamp = now;
-      totalFrameDuration += frameDelta;
-
-      if (now - lastFpsTime >= 1000) {
-        currentFps = ((frameCount * 1000) / (now - lastFpsTime)).toFixed(2);
-        
-        const avgFrameTime = totalFrameDuration / frameCount;
-        let cpuLoad = ((avgFrameTime / 16.6) * 2.8).toFixed(1);
-        if (cpuLoad < 1.0) cpuLoad = (1.2 + Math.random() * 0.4).toFixed(1);
-        if (cpuLoad > 99.0) cpuLoad = '98.5';
-
-        if (isRecording || isStreaming) {
-          currentKbits = 3500;
-        } else {
-          currentKbits = 0;
-        }
-
-        document.getElementById('fps-indicator').innerText = currentFps + ' fps';
-        document.getElementById('cpu-indicator').innerText = cpuLoad + '%';
-        document.getElementById('kbit-indicator').innerText = currentKbits;
-
-        frameCount = 0;
-        totalFrameDuration = 0;
-        lastFpsTime = now;
-      }
-      requestAnimationFrame(trackRealtimeMetrics);
-    }
-    requestAnimationFrame(trackRealtimeMetrics);
-
-    window.addEventListener('DOMContentLoaded', () => {
-      loadLayoutFromStorage();
-    });
-  </script>
-
-<div id="settingsModal" class="modal-overlay">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span>OBS Settings - Stream & Output</span>
-      <span style="cursor:pointer;" onclick="closeSettings()">✕</span>
-    </div>
-    <div class="modal-row">
-      <label>Platform Service</label>
-      <select id="cfgService">
-        <option value="facebook">Facebook Live</option>
-        <option value="custom">Custom RTMP</option>
-        <option value="youtube">YouTube Live</option>
-      </select>
-    </div>
-    <div class="modal-row">
-      <label>Server URL</label>
-      <input type="text" id="cfgRtmpUrl" value="rtmps://live-api-s.facebook.com:443/rtmp/" />
-    </div>
-    <div class="modal-row">
-      <label>Stream Key</label>
-      <input type="password" id="cfgStreamKey" placeholder="Paste stream key FB disini..." />
-    </div>
-    <div class="modal-row" style="flex-direction:row; gap:10px;">
-      <div style="flex:1;">
-        <label>Video Bitrate</label>
-        <input type="text" id="cfgVBitrate" value="3500k" />
-      </div>
-      <div style="flex:1;">
-        <label>FPS</label>
-        <select id="cfgFps">
-          <option value="30">30 FPS</option>
-          <option value="60">60 FPS</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-buttons">
-      <button class="btn-modal secondary" onclick="closeSettings()">Cancel</button>
-      <button class="btn-modal" onclick="saveSettings()">Apply & Save</button>
-    </div>
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <span id="statusLive">• LIVE: 00:00:00</span>
+    <span id="statusRec">• REC: 00:00:00</span>
+    <span>CPU: 0.0%, 60.00 fps</span>
+    <span id="statusKbit">Kbit/s: 0</span>
   </div>
 </div>
 
+<!-- Input File Galeri -->
+<input type="file" id="pickerGalleryImage" accept="image/*" style="display:none;" onchange="handleImageFile(event)" />
+<input type="file" id="pickerGalleryVideo" accept="video/*" style="display:none;" onchange="handleVideoFile(event)" />
 
+<!-- Modal Sources Lengkap -->
+<div id="sourcesModal" class="modal-wrap">
+  <div class="modal-box">
+    <div class="modal-head"><span>Add Source</span><span style="cursor:pointer;" onclick="closeModal('sourcesModal')">✕</span></div>
+    <button class="src-opt" onclick="triggerPicker('image')">🖼️ Image (Buka Galeri Foto)</button>
+    <button class="src-opt" onclick="triggerPicker('video')">🎬 Media Source (Buka Galeri Video)</button>
+    <button class="src-opt" onclick="startCamera('environment')">📹 Video Capture (Kamera Belakang)</button>
+    <button class="src-opt" onclick="startCamera('user')">🤳 Video Capture (Kamera Depan)</button>
+    <button class="src-opt" onclick="addDroneRTSP()">🛸 Drone Stream (RTSP / RTMP)</button>
+    <button class="src-opt" onclick="addTextSource()">📝 Text Overlay (GDI+)</button>
+    <button class="src-opt" onclick="addColorSource()">⬛ Color Source</button>
+  </div>
+</div>
+
+<!-- Modal Settings -->
+<div id="settingsModal" class="modal-wrap">
+  <div class="modal-box">
+    <div class="modal-head"><span>OBS Settings</span><span style="cursor:pointer;" onclick="closeModal('settingsModal')">✕</span></div>
+    <div class="form-row"><label>Platform</label><select id="cfgService"><option>Facebook Live</option><option>Custom RTMP</option><option>YouTube Live</option></select></div>
+    <div class="form-row"><label>Server URL</label><input type="text" id="cfgRtmp" value="rtmps://live-api-s.facebook.com:443/rtmp/" /></div>
+    <div class="form-row"><label>Stream Key</label><input type="password" id="cfgKey" placeholder="Paste Stream Key disini..." /></div>
+    <div style="display:flex; gap:8px;">
+      <div class="form-row" style="flex:1;"><label>Bitrate</label><input type="text" id="cfgBitrate" value="3500k" /></div>
+      <div class="form-row" style="flex:1;"><label>FPS</label><select id="cfgFps"><option>30 FPS</option><option>60 FPS</option></select></div>
+    </div>
+    <button class="src-opt" style="background:#5865f2; text-align:center; margin-top:8px;" onclick="saveSettings()">Save & Apply</button>
+  </div>
 </div>
 
 <script>
+  let isStudio = false;
   let isStreaming = false;
   let isRecording = false;
-  let liveSeconds = 0;
-  let recSeconds = 0;
-  let liveTimer = null;
-  let recTimer = null;
+  let liveSec = 0, recSec = 0;
+  let liveTimer = null, recTimer = null;
+  let activeScene = "Scene 1";
+  let activeSourceEl = null;
 
-  function formatTime(s) {
-    const pad = n => String(n).padStart(2, "0");
-    const hrs = Math.floor(s / 3600);
-    const mins = Math.floor((s % 3600) / 60);
-    const secs = s % 60;
-    return pad(hrs) + ":" + pad(mins) + ":" + pad(secs);
-  }
+  let scenesData = {
+    "Scene 1": []
+  };
 
-  function openSettings() {
-    document.getElementById("cfgStreamKey").value = localStorage.getItem("webobs_key") || "";
-    document.getElementById("cfgRtmpUrl").value = localStorage.getItem("webobs_rtmp") || "rtmps://live-api-s.facebook.com:443/rtmp/";
+  function closeModal(id) { document.getElementById(id).style.display = "none"; }
+  function openSourcesModal() { document.getElementById("sourcesModal").style.display = "flex"; }
+  function openSettingsModal() {
+    document.getElementById("cfgKey").value = localStorage.getItem("obs_key") || "";
+    document.getElementById("cfgRtmp").value = localStorage.getItem("obs_rtmp") || "rtmps://live-api-s.facebook.com:443/rtmp/";
     document.getElementById("settingsModal").style.display = "flex";
   }
-
-  function closeSettings() {
-    document.getElementById("settingsModal").style.display = "none";
-  }
-
   function saveSettings() {
-    localStorage.setItem("webobs_key", document.getElementById("cfgStreamKey").value);
-    localStorage.setItem("webobs_rtmp", document.getElementById("cfgRtmpUrl").value);
-    closeSettings();
-    alert("OBS Settings tersimpan!");
+    localStorage.setItem("obs_key", document.getElementById("cfgKey").value);
+    localStorage.setItem("obs_rtmp", document.getElementById("cfgRtmp").value);
+    closeModal("settingsModal");
   }
 
-  function openSourcesModal() {
-    document.getElementById("sourcesModal").style.display = "flex";
-  }
-
-  function closeSourcesModal() {
-    document.getElementById("sourcesModal").style.display = "none";
-  }
-
-  function addSourceDevice(type) {
-    closeSourcesModal();
-    if (type === "camera") {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true })
-        .then(stream => {
-          let video = document.querySelector("video");
-          if (!video) {
-            video = document.createElement("video");
-            video.autoplay = true;
-            video.playsInline = true;
-            video.muted = true;
-            video.style.width = "100%";
-            video.style.height = "100%";
-            video.style.objectFit = "contain";
-            const previewArea = document.querySelector("[class*='preview']") || document.body;
-            previewArea.innerHTML = "";
-            previewArea.appendChild(video);
-          }
-          video.srcObject = stream;
-          alert("Kamera HP aktif terhubung ke Preview!");
-        })
-        .catch(err => {
-          alert("Akses kamera: " + err.message);
-        });
-    } else if (type === "drone") {
-      const droneUrl = prompt("Masukkan RTSP URL Drone:", "rtsp://192.168.1.1:8554/live");
-      if (droneUrl) alert("Drone source terkonfigurasi: " + droneUrl);
-    } else {
-      alert("Media player siap digunakan.");
-    }
-  }
-
-  function toggleStreaming() {
-    const btn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Streaming"));
-    const key = localStorage.getItem("webobs_key");
-
-    if (!isStreaming) {
-      if (!key) {
-        openSettings();
-        alert("Silakan masukkan Stream Key Facebook terlebih dahulu di Settings!");
-        return;
-      }
-      isStreaming = true;
-      if (btn) {
-        btn.innerText = "Stop Streaming";
-        btn.classList.add("live-active");
-      }
-      liveSeconds = 0;
-      liveTimer = setInterval(() => {
-        liveSeconds++;
-        const liveLabel = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.startsWith("LIVE:"));
-        if (liveLabel) liveLabel.innerText = "LIVE: " + formatTime(liveSeconds);
-        const kbit = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.includes("Kbit/s"));
-        if (kbit) kbit.innerText = "Kbit/s: " + (3200 + Math.floor(Math.random()*400));
-      }, 1000);
-    } else {
-      isStreaming = false;
-      if (btn) {
-        btn.innerText = "Start Streaming";
-        btn.classList.remove("live-active");
-      }
-      clearInterval(liveTimer);
-    }
-  }
-
-  function toggleRecording() {
-    const btn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Recording"));
-    if (!isRecording) {
-      isRecording = true;
-      if (btn) {
-        btn.innerText = "Stop Recording";
-        btn.classList.add("rec-active");
-      }
-      recSeconds = 0;
-      recTimer = setInterval(() => {
-        recSeconds++;
-        const recLabel = Array.from(document.querySelectorAll("*")).find(el => el.innerText && el.innerText.startsWith("REC:"));
-        if (recLabel) recLabel.innerText = "REC: " + formatTime(recSeconds);
-      }, 1000);
-    } else {
-      isRecording = false;
-      if (btn) {
-        btn.innerText = "Start Recording";
-        btn.classList.remove("rec-active");
-      }
-      clearInterval(recTimer);
-    }
-  }
-
-  window.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("button").forEach(b => {
-      const text = b.innerText.trim();
-      if (text.includes("Settings")) b.onclick = openSettings;
-      if (text.includes("Start Streaming") || text.includes("Stop Streaming")) b.onclick = toggleStreaming;
-      if (text.includes("Start Recording") || text.includes("Stop Recording")) b.onclick = toggleRecording;
-      if (text.includes("Studio Mode")) b.onclick = () => alert("Studio Mode diaktifkan");
+  /* Scenes & Sources Manager */
+  function renderScenes() {
+    const list = document.getElementById("scenesList");
+    list.innerHTML = "";
+    Object.keys(scenesData).forEach(name => {
+      const item = document.createElement("div");
+      item.className = "list-item" + (name === activeScene ? " active" : "");
+      item.innerText = name;
+      item.onclick = () => switchScene(name);
+      list.appendChild(item);
     });
+  }
 
-    const plusButtons = document.querySelectorAll("button");
-    plusButtons.forEach(b => {
-      if (b.innerText.trim() === "+") b.onclick = openSourcesModal;
+  function renderSourcesList() {
+    const list = document.getElementById("sourcesList");
+    list.innerHTML = "";
+    const items = scenesData[activeScene] || [];
+    items.forEach((item, idx) => {
+      const row = document.createElement("div");
+      row.className = "list-item" + (item.el === activeSourceEl ? " active" : "");
+      row.innerText = item.name;
+      row.onclick = () => selectSourceItem(item.el);
+      list.appendChild(row);
     });
-  });
-</script>
-
-<!-- TRANSFORM_STUDIO_ENGINE_START -->
-<style>
-  /* Kanvas Monitor OBS */
-  .canvas-stage {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background: #0d0e12;
-    overflow: hidden;
-    user-select: none;
-    touch-action: none;
   }
 
-  /* Kotak Transform Merah OBS */
-  .obs-transform-item {
-    position: absolute;
-    border: 2px solid #ef4444;
-    cursor: move;
-    box-sizing: border-box;
-    display: inline-block;
-  }
-  .obs-transform-item.active {
-    border-color: #ef4444;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-  }
-
-  /* Titik Pegangan Sudut untuk Resize (Perbesar/Perkecil) */
-  .obs-handle {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    background: #ffffff;
-    border: 2px solid #ef4444;
-    border-radius: 2px;
-    box-sizing: border-box;
-  }
-  .obs-handle.br {
-    right: -7px;
-    bottom: -7px;
-    cursor: se-resize;
-  }
-  .obs-handle.tl {
-    left: -7px;
-    top: -7px;
-    cursor: nw-resize;
-  }
-
-  /* Layout Studio Mode Dua Layar */
-  .studio-split-layout {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    gap: 6px;
-    align-items: center;
-    background: #14151b;
-    padding: 4px;
-    box-sizing: border-box;
-  }
-  .studio-monitor {
-    flex: 1;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-  .monitor-label {
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
-    letter-spacing: 1px;
-    display: flex;
-    justify-content: space-between;
-  }
-  .monitor-preview-label { background: #1e3a8a; color: #93c5fd; }
-  .monitor-program-label { background: #7f1d1d; color: #fca5a5; }
-
-  /* Tombol Transisi di Tengah */
-  .studio-transition-bar {
-    width: 75px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-  }
-  .btn-trans {
-    width: 100%;
-    background: #2b2d3c;
-    border: 1px solid #45485f;
-    color: #fff;
-    padding: 8px 4px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .btn-trans:active { background: #5865f2; }
-</style>
-
-<script>
-  let inStudioMode = false;
-  let selectedElement = null;
-
-  // Pasang sistem Drag & Scale (Perbesar/Perkecil via Sudut)
-  function makeTransformable(el) {
-    el.classList.add("obs-transform-item", "active");
-
-    // Buat handle sudut kanan bawah untuk resize
-    const handleBR = document.createElement("div");
-    handleBR.className = "obs-handle br";
-    el.appendChild(handleBR);
-
-    let isDragging = false;
-    let isResizing = false;
-    let startX, startY, startW, startH, startLeft, startTop;
-
-    function onPointerDown(e) {
-      e.stopPropagation();
-      const pointer = e.touches ? e.touches[0] : e;
-      startX = pointer.clientX;
-      startY = pointer.clientY;
-      startLeft = el.offsetLeft;
-      startTop = el.offsetTop;
-      startW = el.offsetWidth;
-      startH = el.offsetHeight;
-
-      if (e.target === handleBR) {
-        isResizing = true;
-      } else {
-        isDragging = true;
-      }
-
-      document.querySelectorAll(".obs-transform-item").forEach(item => item.classList.remove("active"));
-      el.classList.add("active");
-    }
-
-    function onPointerMove(e) {
-      if (!isDragging && !isResizing) return;
-      const pointer = e.touches ? e.touches[0] : e;
-      const dx = pointer.clientX - startX;
-      const dy = pointer.clientY - startY;
-
-      if (isDragging) {
-        el.style.left = Math.max(0, startLeft + dx) + "px";
-        el.style.top = Math.max(0, startTop + dy) + "px";
-      } else if (isResizing) {
-        el.style.width = Math.max(40, startW + dx) + "px";
-        el.style.height = Math.max(40, startH + dy) + "px";
-        const innerMedia = el.querySelector("video, img");
-        if (innerMedia) {
-          innerMedia.style.width = "100%";
-          innerMedia.style.height = "100%";
-        }
-      }
-    }
-
-    function onPointerUp() {
-      isDragging = false;
-      isResizing = false;
-    }
-
-    el.addEventListener("mousedown", onPointerDown);
-    el.addEventListener("touchstart", onPointerDown, { passive: false });
-    window.addEventListener("mousemove", onPointerMove);
-    window.addEventListener("touchmove", onPointerMove, { passive: false });
-    window.addEventListener("mouseup", onPointerUp);
-    window.addEventListener("touchend", onPointerUp);
-  }
-
-  // Bungkus sumber yang baru masuk ke dalam bounding box merah
-  function wrapMediaInTransformBox(mediaEl, defaultW, defaultH) {
-    const box = document.createElement("div");
-    box.style.left = "40px";
-    box.style.top = "30px";
-    box.style.width = (defaultW || 240) + "px";
-    box.style.height = (defaultH || 135) + "px";
-
-    mediaEl.style.width = "100%";
-    mediaEl.style.height = "100%";
-    mediaEl.style.objectFit = "cover";
-    mediaEl.style.pointerEvents = "none";
-
-    box.appendChild(mediaEl);
-    makeTransformable(box);
-    return box;
-  }
-
-  // Dapatkan Kanvas Utama
-  function getActiveCanvas() {
-    let previewBox = document.getElementById("studioPreviewCanvas");
-    if (previewBox) return previewBox;
-    let mainContainer = getPreviewContainer();
-    if (!mainContainer.classList.contains("canvas-stage")) {
-      mainContainer.classList.add("canvas-stage");
-    }
-    return mainContainer;
-  }
-
-  // Override fungsi input gambar/galeri agar langsung punya box merah transform
-  window.onImageSelected = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const canvas = getActiveCanvas();
-    const img = document.createElement("img");
-    img.src = url;
-    const box = wrapMediaInTransformBox(img, 200, 150);
-    canvas.appendChild(box);
-    addSourceItemToList("🖼️ " + file.name);
-  };
-
-  // Override fungsi video galeri
-  window.onVideoSelected = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const canvas = getActiveCanvas();
-    const vid = document.createElement("video");
-    vid.src = url;
-    vid.autoplay = true;
-    vid.loop = true;
-    vid.muted = true;
-    vid.playsInline = true;
-    const box = wrapMediaInTransformBox(vid, 260, 146);
-    canvas.appendChild(box);
-    addSourceItemToList("🎬 " + file.name);
-  };
-
-  // Override fungsi kamera agar masuk ke box transform dan bisa digeser/diperkecil
-  const prevAddSource = window.addSource;
-  window.addSource = function(type) {
-    closeModal("obsSourcesModal");
-    const canvas = getActiveCanvas();
-
-    if (type === "camera_back" || type === "camera_front") {
-      const facing = (type === "camera_front") ? "user" : "environment";
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
-        .then(stream => {
-          const video = document.createElement("video");
-          video.autoplay = true;
-          video.playsInline = true;
-          video.muted = true;
-          video.srcObject = stream;
-          const box = wrapMediaInTransformBox(video, 280, 158);
-          canvas.appendChild(box);
-          addSourceItemToList(type === "camera_front" ? "🤳 Front Camera" : "📹 Rear Camera");
-        })
-        .catch(err => console.error(err));
-    } else if (type === "drone") {
-      const rtsp = prompt("Masukkan URL Drone RTSP/RTMP:", "rtsp://192.168.1.1:8554/live");
-      if (rtsp) addSourceItemToList("🛸 Drone: " + rtsp);
-    }
-  };
-
-  // Toggle Studio Mode (Dual Screen + Transition Bar)
-  window.toggleStudioMode = function() {
-    const container = getPreviewContainer();
-    if (!container) return;
-    inStudioMode = !inStudioMode;
-
-    if (inStudioMode) {
-      const currentContent = container.innerHTML;
-      container.style.display = "block";
-      container.innerHTML = `
-        <div class="studio-split-layout">
-          <div class="studio-monitor">
-            <div class="monitor-label monitor-preview-label"><span>PREVIEW</span><span>EDITING</span></div>
-            <div id="studioPreviewCanvas" class="canvas-stage" style="border: 2px solid #2563eb;">${currentContent}</div>
-          </div>
-          <div class="studio-transition-bar">
-            <button class="btn-trans" onclick="executeTransition('cut')">CUT</button>
-            <button class="btn-trans" onclick="executeTransition('fade')" style="background:#2563eb;">TRANSITION</button>
-          </div>
-          <div class="studio-monitor">
-            <div class="monitor-label monitor-program-label"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
-            <div id="studioProgramCanvas" class="canvas-stage" style="border: 2px solid #dc2626;"></div>
-          </div>
-        </div>
-      `;
-
-      // Aktifkan kembali drag handles di kanvas preview
-      container.querySelectorAll(".obs-transform-item").forEach(item => makeTransformable(item));
-    } else {
-      const previewCanvas = document.getElementById("studioPreviewCanvas");
-      const savedHTML = previewCanvas ? previewCanvas.innerHTML : "";
-      container.innerHTML = savedHTML;
-      container.classList.add("canvas-stage");
-      container.querySelectorAll(".obs-transform-item").forEach(item => makeTransformable(item));
-    }
-  };
-
-  // Logika Eksekusi Transisi (Preview didorong ke Program Live)
-  window.executeTransition = function(type) {
-    const previewCanvas = document.getElementById("studioPreviewCanvas");
-    const programCanvas = document.getElementById("studioProgramCanvas");
-    if (!previewCanvas || !programCanvas) return;
-
-    if (type === "fade") {
-      programCanvas.style.transition = "opacity 0.25s ease-out";
-      programCanvas.style.opacity = "0.2";
-      setTimeout(() => {
-        programCanvas.innerHTML = previewCanvas.innerHTML;
-        programCanvas.style.opacity = "1";
-        // Hilangkan border seleksi merah di layar Program siaran
-        programCanvas.querySelectorAll(".obs-transform-item").forEach(el => {
-          el.style.border = "none";
-          const h = el.querySelector(".obs-handle");
-          if (h) h.remove();
-        });
-      }, 250);
-    } else {
-      programCanvas.innerHTML = previewCanvas.innerHTML;
-      programCanvas.querySelectorAll(".obs-transform-item").forEach(el => {
-        el.style.border = "none";
-        const h = el.querySelector(".obs-handle");
-        if (h) h.remove();
+  function switchScene(name) {
+    activeScene = name;
+    renderScenes();
+    const stage = document.getElementById("previewStage");
+    stage.innerHTML = "";
+    activeSourceEl = null;
+    if (scenesData[name]) {
+      scenesData[name].forEach(item => {
+        stage.appendChild(item.el);
+        attachTransform(item.el);
       });
     }
-  };
-</script>
-<!-- TRANSFORM_STUDIO_ENGINE_END -->
-
-<!-- FILE INPUT GALERI -->
-<input type="file" id="pickerImage" accept="image/*" style="display:none;" onchange="handleImagePick(event)" />
-<input type="file" id="pickerVideo" accept="video/*" style="display:none;" onchange="handleVideoPick(event)" />
-
-<!-- MODAL SOURCES LENGKAP V2.0 -->
-<div id="obsSourcesModal" class="obs-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center;">
-  <div style="background:#20212b; border:1px solid #303242; border-radius:8px; width:340px; max-height:85vh; overflow-y:auto; padding:15px; color:#fff; box-shadow:0 10px 30px #000;">
-    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #303242; padding-bottom:8px; margin-bottom:12px; font-weight:bold; font-size:13px;">
-      <span>Add Source (OBS Studio)</span>
-      <span style="cursor:pointer; font-size:16px; color:#888;" onclick="closeSourceModal()">✕</span>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:6px;">
-      <button class="obs-btn-src" onclick="pickFromGallery('image')">🖼️ Image (Buka Galeri Foto)</button>
-      <button class="obs-btn-src" onclick="pickFromGallery('video')">🎬 Media Source (Buka Galeri Video)</button>
-      <button class="obs-btn-src" onclick="startCameraDirect('environment')">📹 Video Capture (Kamera Belakang)</button>
-      <button class="obs-btn-src" onclick="startCameraDirect('user')">🤳 Video Capture (Kamera Depan)</button>
-      <button class="obs-btn-src" onclick="addDroneRTSP()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
-      <button class="obs-btn-src" onclick="addTextOverlay()">📝 Text (GDI+ Overlay)</button>
-      <button class="obs-btn-src" onclick="addColorSource()">⬛ Color Source (Background)</button>
-    </div>
-  </div>
-</div>
-
-<style>
-  .obs-btn-src {
-    background: #2b2d3c;
-    border: 1px solid #3c3f54;
-    color: #eee;
-    padding: 10px;
-    border-radius: 5px;
-    text-align: left;
-    font-size: 11px;
-    cursor: pointer;
-    font-weight: 500;
-  }
-  .obs-btn-src:active { background: #5865f2; border-color: #5865f2; }
-
-  /* Grid Transform Merah OBS */
-  .obs-box {
-    position: absolute;
-    border: 2px solid #ef4444;
-    cursor: move;
-    touch-action: none;
-    user-select: none;
-    z-index: 10;
-  }
-  .obs-box-handle {
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: #fff;
-    border: 2px solid #ef4444;
-    right: -8px;
-    bottom: -8px;
-    border-radius: 2px;
-  }
-</style>
-
-<script>
-  function closeSourceModal() {
-    document.getElementById("obsSourcesModal").style.display = "none";
+    renderSourcesList();
   }
 
-  function pickFromGallery(type) {
-    closeSourceModal();
-    if (type === "image") document.getElementById("pickerImage").click();
-    if (type === "video") document.getElementById("pickerVideo").click();
+  function promptAddScene() {
+    const name = prompt("Nama Scene Baru:", "Scene " + (Object.keys(scenesData).length + 1));
+    if (name && !scenesData[name]) {
+      scenesData[name] = [];
+      switchScene(name);
+    }
   }
 
-  function getMonitor() {
-    let m = document.getElementById("studioPreviewCanvas");
-    if (m) return m;
-    m = document.querySelector("[class*='viewport'], [class*='preview'], [id*='preview']");
-    if (!m) m = document.querySelector("div[style*='relative']") || document.body;
-    return m;
+  function removeActiveScene() {
+    const keys = Object.keys(scenesData);
+    if (keys.length <= 1) return;
+    delete scenesData[activeScene];
+    switchScene(Object.keys(scenesData)[0]);
   }
 
-  function makeMovable(box) {
-    const handle = box.querySelector(".obs-box-handle");
+  function selectSourceItem(el) {
+    activeSourceEl = el;
+    document.querySelectorAll(".obs-item").forEach(i => i.classList.remove("selected"));
+    if (el) el.classList.add("selected");
+    renderSourcesList();
+  }
+
+  function removeSelectedSource() {
+    if (!activeSourceEl) return;
+    activeSourceEl.remove();
+    scenesData[activeScene] = scenesData[activeScene].filter(s => s.el !== activeSourceEl);
+    activeSourceEl = null;
+    renderSourcesList();
+  }
+
+  /* Grid Transform (Drag & Scale Resize) */
+  function attachTransform(box) {
+    const resizer = box.querySelector(".obs-resizer");
     let isDrag = false, isResize = false;
-    let sX, sY, sW, sH, sL, sT;
+    let sx, sy, sl, st, sw, sh;
 
-    function start(e) {
+    function down(e) {
       e.stopPropagation();
+      selectSourceItem(box);
       const p = e.touches ? e.touches[0] : e;
-      sX = p.clientX; sY = p.clientY;
-      sL = box.offsetLeft; sT = box.offsetTop;
-      sW = box.offsetWidth; sH = box.offsetHeight;
-      if (e.target === handle) isResize = true;
+      sx = p.clientX; sy = p.clientY;
+      sl = box.offsetLeft; st = box.offsetTop;
+      sw = box.offsetWidth; sh = box.offsetHeight;
+      if (e.target === resizer) isResize = true;
       else isDrag = true;
     }
 
     function move(e) {
       if (!isDrag && !isResize) return;
       const p = e.touches ? e.touches[0] : e;
-      const dx = p.clientX - sX;
-      const dy = p.clientY - sY;
+      const dx = p.clientX - sx;
+      const dy = p.clientY - sy;
       if (isDrag) {
-        box.style.left = (sL + dx) + "px";
-        box.style.top = (sT + dy) + "px";
+        box.style.left = Math.max(0, sl + dx) + "px";
+        box.style.top = Math.max(0, st + dy) + "px";
       } else if (isResize) {
-        box.style.width = Math.max(50, sW + dx) + "px";
-        box.style.height = Math.max(50, sH + dy) + "px";
+        box.style.width = Math.max(40, sw + dx) + "px";
+        box.style.height = Math.max(40, sh + dy) + "px";
       }
     }
 
-    function stop() { isDrag = false; isResize = false; }
+    function up() { isDrag = false; isResize = false; }
 
-    box.addEventListener("mousedown", start);
-    box.addEventListener("touchstart", start, {passive:false});
+    box.addEventListener("mousedown", down);
+    box.addEventListener("touchstart", down, {passive:false});
     window.addEventListener("mousemove", move);
     window.addEventListener("touchmove", move, {passive:false});
-    window.addEventListener("mouseup", stop);
-    window.addEventListener("touchend", stop);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
   }
 
-  function wrapMedia(mediaEl, w, h) {
+  function createSourceBox(innerMedia, title, w, h) {
     const box = document.createElement("div");
-    box.className = "obs-box";
+    box.className = "obs-item selected";
     box.style.width = (w || 240) + "px";
     box.style.height = (h || 135) + "px";
-    box.style.left = "30px";
+    box.style.left = "20px";
     box.style.top = "20px";
 
-    mediaEl.style.width = "100%";
-    mediaEl.style.height = "100%";
-    mediaEl.style.objectFit = "cover";
-    mediaEl.style.pointerEvents = "none";
-    box.appendChild(mediaEl);
+    innerMedia.style.width = "100%";
+    innerMedia.style.height = "100%";
+    innerMedia.style.objectFit = "cover";
+    innerMedia.style.pointerEvents = "none";
+    box.appendChild(innerMedia);
 
-    const handle = document.createElement("div");
-    handle.className = "obs-box-handle";
-    box.appendChild(handle);
+    const resizer = document.createElement("div");
+    resizer.className = "obs-resizer";
+    box.appendChild(resizer);
 
-    makeMovable(box);
-    getMonitor().appendChild(box);
+    document.getElementById("previewStage").appendChild(box);
+    attachTransform(box);
+    selectSourceItem(box);
+
+    scenesData[activeScene].push({ name: title, el: box });
+    renderSourcesList();
   }
 
-  function handleImagePick(e) {
-    const f = e.target.files[0];
-    if (!f) return;
+  /* Sources Handlers */
+  function triggerPicker(type) {
+    closeModal("sourcesModal");
+    if (type === "image") document.getElementById("pickerGalleryImage").click();
+    if (type === "video") document.getElementById("pickerGalleryVideo").click();
+  }
+
+  function handleImageFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
     const img = document.createElement("img");
-    img.src = URL.createObjectURL(f);
-    wrapMedia(img, 200, 150);
+    img.src = URL.createObjectURL(file);
+    createSourceBox(img, "🖼️ " + file.name, 200, 150);
   }
 
-  function handleVideoPick(e) {
-    const f = e.target.files[0];
-    if (!f) return;
-    const v = document.createElement("video");
-    v.src = URL.createObjectURL(f);
-    v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
-    wrapMedia(v, 260, 146);
+  function handleVideoFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const vid = document.createElement("video");
+    vid.src = URL.createObjectURL(file);
+    vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+    createSourceBox(vid, "🎬 " + file.name, 260, 146);
   }
 
-  function startCameraDirect(facing) {
-    closeSourceModal();
+  function startCamera(facing) {
+    closeModal("sourcesModal");
     navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
       .then(stream => {
-        const v = document.createElement("video");
-        v.autoplay = true; v.muted = true; v.playsInline = true;
-        v.srcObject = stream;
-        wrapMedia(v, 260, 146);
+        const vid = document.createElement("video");
+        vid.autoplay = true; vid.muted = true; vid.playsInline = true;
+        vid.srcObject = stream;
+        createSourceBox(vid, facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera", 260, 146);
       })
-      .catch(err => alert("Kamera error: " + err.message));
+      .catch(err => console.error(err));
   }
 
   function addDroneRTSP() {
-    closeSourceModal();
-    const u = prompt("Masukkan URL Drone RTSP/RTMP:", "rtsp://192.168.1.1:8554/live");
-    if (u) alert("Drone connected: " + u);
+    closeModal("sourcesModal");
+    const u = prompt("RTSP Drone Stream URL:", "rtsp://192.168.1.1:8554/live");
+    if (!u) return;
+    const box = document.createElement("div");
+    box.style.background = "#1f2937"; box.style.color = "#60a5fa"; box.style.display = "flex";
+    box.style.alignItems = "center"; box.style.justifyContent = "center"; box.style.fontSize = "12px";
+    box.innerText = "🛸 DRONE LIVE FEED";
+    createSourceBox(box, "🛸 " + u, 260, 146);
   }
 
-  function addTextOverlay() {
-    closeSourceModal();
-    const t = prompt("Masukkan Teks:", "LIVE STREAM DRONE");
-    if (!t) return;
+  function addTextSource() {
+    closeModal("sourcesModal");
+    const txt = prompt("Overlay Text:", "LIVE STREAM");
+    if (!txt) return;
     const d = document.createElement("div");
     d.style.color = "#fff"; d.style.fontWeight = "bold"; d.style.fontSize = "18px";
-    d.style.textShadow = "2px 2px 4px #000"; d.innerText = t;
-    wrapMedia(d, 220, 50);
+    d.style.textShadow = "2px 2px 4px #000"; d.innerText = txt;
+    createSourceBox(d, "📝 " + txt, 200, 40);
   }
 
   function addColorSource() {
-    closeSourceModal();
+    closeModal("sourcesModal");
     const d = document.createElement("div");
     d.style.background = "#2563eb";
-    wrapMedia(d, 200, 120);
+    createSourceBox(d, "⬛ Color Source", 180, 100);
   }
 
-  // Tautkan tombol + panel Sources langsung
-  window.addEventListener("DOMContentLoaded", () => {
-    setInterval(() => {
-      const srcPanel = document.querySelector("[class*='sources'], [id*='sources']");
-      if (srcPanel) {
-        const btnPlus = Array.from(srcPanel.querySelectorAll("button")).find(b => b.innerText.trim() === "+");
-        if (btnPlus && !btnPlus.dataset.hooked) {
-          btnPlus.dataset.hooked = "true";
-          btnPlus.onclick = (e) => {
-            e.stopPropagation();
-            document.getElementById("obsSourcesModal").style.display = "flex";
-          };
-        }
+  /* Studio Mode Dual Monitors */
+  function toggleStudioMode() {
+    isStudio = !isStudio;
+    const trans = document.getElementById("transBar");
+    const program = document.getElementById("programMonitorBox");
+    const btn = document.getElementById("btnStudioMode");
+
+    if (isStudio) {
+      trans.style.display = "flex";
+      program.style.display = "flex";
+      btn.style.background = "#5865f2";
+      btn.style.color = "#fff";
+      execTransition('cut');
+    } else {
+      trans.style.display = "none";
+      program.style.display = "none";
+      btn.style.background = "";
+      btn.style.color = "";
+    }
+  }
+
+  function execTransition(type) {
+    const preview = document.getElementById("previewStage");
+    const program = document.getElementById("programStage");
+    if (!preview || !program) return;
+
+    if (type === "fade") {
+      program.style.opacity = "0.2";
+      setTimeout(() => {
+        cloneToProgram(preview, program);
+        program.style.opacity = "1";
+      }, 150);
+    } else {
+      cloneToProgram(preview, program);
+    }
+  }
+
+  function cloneToProgram(src, dest) {
+    dest.innerHTML = src.innerHTML;
+    // Hilangkan seleksi dan resizer di layar program On-Air
+    dest.querySelectorAll(".obs-item").forEach(item => {
+      item.style.border = "none";
+      item.style.boxShadow = "none";
+      const r = item.querySelector(".obs-resizer");
+      if (r) r.remove();
+    });
+  }
+
+  /* Streaming & Recording Logic */
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function fmtTime(s) { return pad(Math.floor(s/3600)) + ":" + pad(Math.floor((s%3600)/60)) + ":" + pad(s%60); }
+
+  function toggleStreaming() {
+    const btn = document.getElementById("btnStreaming");
+    if (!isStreaming) {
+      isStreaming = true;
+      btn.innerText = "Stop Streaming";
+      btn.classList.add("live-active");
+      liveSec = 0;
+      liveTimer = setInterval(() => {
+        liveSec++;
+        document.getElementById("statusLive").innerText = "• LIVE: " + fmtTime(liveSec);
+        document.getElementById("statusKbit").innerText = "Kbit/s: " + (3200 + Math.floor(Math.random()*400));
+      }, 1000);
+    } else {
+      isStreaming = false;
+      btn.innerText = "Start Streaming";
+      btn.classList.remove("live-active");
+      clearInterval(liveTimer);
+    }
+  }
+
+  function toggleRecording() {
+    const btn = document.getElementById("btnRecording");
+    if (!isRecording) {
+      isRecording = true;
+      btn.innerText = "Stop Recording";
+      btn.classList.add("rec-active");
+      recSec = 0;
+      recTimer = setInterval(() => {
+        recSec++;
+        document.getElementById("statusRec").innerText = "• REC: " + fmtTime(recSec);
+      }, 1000);
+    } else {
+      isRecording = false;
+      btn.innerText = "Start Recording";
+      btn.classList.remove("rec-active");
+      clearInterval(recTimer);
+    }
+  }
+
+  /* Audio Meter dB */
+  function initAudio() {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 32;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        let avg = sum / data.length;
+        let db = avg > 0 ? (Math.round((avg / 255) * 45) - 45) : -60;
+        const disp = document.getElementById("dbDisplay");
+        disp.innerText = db + " dB";
+        disp.style.color = db > -6 ? "#ed4245" : (db > -18 ? "#faa61a" : "#3ba55c");
       }
-    }, 500);
+      draw();
+    }).catch(e => console.log("Audio info:", e.message));
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    renderScenes();
+    setTimeout(initAudio, 1000);
   });
 </script>
 </body>
