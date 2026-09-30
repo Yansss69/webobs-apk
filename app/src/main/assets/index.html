@@ -3,39 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>WebOBS Studio</title>
+  <title>OBS Studio Native Mobile</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html { width: 100vw; height: 100vh; overflow: hidden; background: #14151b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #dcddde; user-select: none; }
     #app { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
-    
-    /* Top Bar Menu */
-    .topbar { height: 26px; background: #1f2029; display: flex; align-items: center; padding: 0 10px; font-size: 11px; gap: 14px; border-bottom: 1px solid #2d2f3d; }
+
+    /* Top Menu Bar */
+    .topbar { height: 26px; background: #1f2029; display: flex; align-items: center; padding: 0 10px; font-size: 11px; gap: 14px; border-bottom: 1px solid #2d2f3d; flex-shrink: 0; }
     .topbar span { cursor: pointer; color: #b9bbbe; }
     .topbar span:hover { color: #fff; }
 
-    /* Canvas Viewport */
-    .viewport-area { flex: 1; display: flex; background: #0b0c10; position: relative; overflow: hidden; justify-content: center; align-items: center; padding: 4px; }
-    .studio-container { display: flex; width: 100%; height: 100%; gap: 6px; }
-    .monitor-box { flex: 1; height: 100%; display: flex; flex-direction: column; position: relative; background: #000; }
-    .monitor-header { height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; padding: 0 6px; justify-content: space-between; }
+    /* Monitor Viewport */
+    .viewport-area { flex: 1; display: flex; flex-direction: column; background: #0b0c10; position: relative; overflow: hidden; padding: 4px; gap: 4px; }
+    .monitors-wrap { flex: 1; display: flex; width: 100%; height: 100%; gap: 6px; position: relative; }
+    
+    .monitor-box { flex: 1; height: 100%; display: flex; flex-direction: column; background: #000; position: relative; }
+    .monitor-header { height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; padding: 0 6px; justify-content: space-between; flex-shrink: 0; }
     .preview-header { background: #1e3a8a; color: #93c5fd; }
     .program-header { background: #7f1d1d; color: #fca5a5; }
-    
-    .screen-stage { flex: 1; position: relative; overflow: hidden; background: #0d0e12; touch-action: none; }
-    
-    /* Bounding Box Merah OBS */
-    .obs-item { position: absolute; border: 2px solid #ef4444; cursor: move; touch-action: none; }
-    .obs-item.selected { box-shadow: 0 0 8px rgba(239, 68, 68, 0.7); }
-    .obs-resizer { position: absolute; width: 16px; height: 16px; background: #fff; border: 2px solid #ef4444; right: -8px; bottom: -8px; border-radius: 2px; }
+
+    .stage-canvas { flex: 1; width: 100%; height: 100%; position: relative; overflow: hidden; background: #0d0e12; touch-action: none; }
+
+    /* OBS 8-Point Bounding Box */
+    .obs-bbox { position: absolute; border: 2px solid #ef4444; touch-action: none; }
+    .obs-bbox.selected { border-color: #ef4444; }
+    .obs-handle { position: absolute; width: 10px; height: 10px; background: #ffffff; border: 2px solid #ef4444; border-radius: 2px; }
+    .h-tl { left: -5px; top: -5px; cursor: nw-resize; }
+    .h-tr { right: -5px; top: -5px; cursor: ne-resize; }
+    .h-bl { left: -5px; bottom: -5px; cursor: sw-resize; }
+    .h-br { right: -5px; bottom: -5px; cursor: se-resize; }
+    .h-tm { left: calc(50% - 5px); top: -5px; cursor: n-resize; }
+    .h-bm { left: calc(50% - 5px); bottom: -5px; cursor: s-resize; }
+    .h-ml { left: -5px; top: calc(50% - 5px); cursor: w-resize; }
+    .h-mr { right: -5px; top: calc(50% - 5px); cursor: e-resize; }
 
     /* Transition Bar */
-    .trans-bar { width: 75px; display: flex; flex-direction: column; justify-content: center; gap: 8px; align-items: center; }
+    .trans-bar { width: 75px; display: none; flex-direction: column; justify-content: center; gap: 8px; align-items: center; flex-shrink: 0; }
     .trans-btn { width: 100%; background: #272936; border: 1px solid #3c3f52; color: #fff; font-size: 10px; font-weight: bold; padding: 8px 2px; border-radius: 4px; cursor: pointer; }
     .trans-btn:active { background: #5865f2; }
 
+    /* Media Playback Toolbar (Play/Pause/Seekbar) */
+    .media-toolbar { height: 26px; background: #161720; border: 1px solid #2d2f3d; display: none; align-items: center; padding: 0 8px; gap: 8px; font-size: 11px; flex-shrink: 0; }
+    .media-btn { background: transparent; border: none; color: #dcddde; cursor: pointer; font-size: 12px; }
+    .media-progress { flex: 1; accent-color: #5865f2; height: 4px; }
+    .media-time { font-size: 10px; color: #8e9297; font-family: monospace; }
+
     /* Bottom Control Docks */
-    .dock-area { height: 130px; background: #1a1b24; border-top: 1px solid #2d2f3d; display: flex; }
+    .dock-area { height: 130px; background: #1a1b24; border-top: 1px solid #2d2f3d; display: flex; flex-shrink: 0; }
     .dock-col { border-right: 1px solid #2d2f3d; display: flex; flex-direction: column; }
     .dock-title { font-size: 9px; font-weight: bold; padding: 4px 8px; background: #161720; color: #8e9297; text-transform: uppercase; border-bottom: 1px solid #262836; display: flex; justify-content: space-between; }
     .dock-list { flex: 1; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
@@ -43,7 +58,7 @@
     .dock-btn { background: #282a3a; border: 1px solid #3a3d52; color: #dcddde; min-width: 22px; height: 20px; font-size: 11px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .dock-btn:active { background: #5865f2; color: #fff; }
 
-    .list-item { font-size: 11px; padding: 4px 6px; border-radius: 3px; background: #232533; color: #dcddde; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+    .list-item { font-size: 11px; padding: 4px 6px; border-radius: 3px; background: #232533; color: #dcddde; cursor: pointer; }
     .list-item.active { background: #5865f2; color: #fff; font-weight: bold; }
 
     /* Controls Panel */
@@ -54,9 +69,9 @@
     .rec-active { background: #ed4245 !important; color: #fff !important; font-weight: bold; }
 
     /* Status Bar */
-    .statusbar { height: 20px; background: #111217; display: flex; align-items: center; padding: 0 8px; font-size: 10px; color: #72767d; gap: 14px; border-top: 1px solid #22232e; }
+    .statusbar { height: 20px; background: #111217; display: flex; align-items: center; padding: 0 8px; font-size: 10px; color: #72767d; gap: 14px; border-top: 1px solid #22232e; flex-shrink: 0; }
 
-    /* Modal System */
+    /* Modals */
     .modal-wrap { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; }
     .modal-box { background: #20212b; border: 1px solid #303242; border-radius: 6px; width: 340px; max-height: 85vh; overflow-y: auto; padding: 14px; color: #dcddde; }
     .modal-head { font-size: 12px; font-weight: bold; border-bottom: 1px solid #303242; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; }
@@ -74,28 +89,36 @@
     <span>File</span><span>Edit</span><span>View</span><span>Profile</span><span>Scene Collection</span><span>Tools</span><span>Help</span>
   </div>
 
-  <!-- Viewport Monitors -->
+  <!-- Viewport Area -->
   <div class="viewport-area">
-    <div class="studio-container" id="studioContainer">
+    <div class="monitors-wrap" id="monitorsWrap">
       <!-- Preview Monitor -->
       <div class="monitor-box" id="previewMonitorBox" style="border: 1px solid #2563eb;">
         <div class="monitor-header preview-header" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
-        <div class="screen-stage" id="previewStage"></div>
+        <div class="stage-canvas" id="previewStage"></div>
       </div>
-      <!-- Center Transitions -->
-      <div class="trans-bar" id="transBar" style="display:none;">
+      <!-- Center Transition Bar -->
+      <div class="trans-bar" id="transBar">
         <button class="trans-btn" onclick="execTransition('cut')">CUT</button>
         <button class="trans-btn" onclick="execTransition('fade')" style="background:#2563eb;">TRANSITION</button>
       </div>
       <!-- Program Monitor -->
       <div class="monitor-box" id="programMonitorBox" style="display:none; border: 1px solid #dc2626;">
         <div class="monitor-header program-header"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
-        <div class="screen-stage" id="programStage"></div>
+        <div class="stage-canvas" id="programStage"></div>
       </div>
+    </div>
+
+    <!-- Media Controls Toolbar -->
+    <div class="media-toolbar" id="mediaToolbar">
+      <button class="media-btn" id="mediaPlayBtn" onclick="toggleMediaPlay()">⏸</button>
+      <button class="media-btn" onclick="stopActiveMedia()">⏹</button>
+      <input type="range" class="media-progress" id="mediaProgress" min="0" max="100" value="0" oninput="seekActiveMedia(this.value)">
+      <span class="media-time" id="mediaTimeLabel">00:00 / 00:00</span>
     </div>
   </div>
 
-  <!-- Docks Panel -->
+  <!-- Bottom Docks Area -->
   <div class="dock-area">
     <!-- Scenes -->
     <div class="dock-col" style="width: 140px;">
@@ -112,7 +135,7 @@
       <div class="dock-list" id="sourcesList"></div>
       <div class="dock-actions">
         <button class="dock-btn" onclick="openSourcesModal()">+</button>
-        <button class="dock-btn" onclick="removeSelectedSource()">-</button>
+        <button class="dock-btn" onclick="removeActiveSource()">-</button>
       </div>
     </div>
     <!-- Audio Mixer -->
@@ -126,7 +149,7 @@
         <input type="range" id="micSlider" min="0" max="100" value="85" style="width: 100%; accent-color: #5865f2;">
       </div>
     </div>
-    <!-- Scene Transitions -->
+    <!-- Transitions Dock -->
     <div class="dock-col" style="width: 130px;">
       <div class="dock-title">Transitions</div>
       <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
@@ -134,7 +157,7 @@
         <input type="text" value="300 ms" style="background:#161720; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" />
       </div>
     </div>
-    <!-- Controls -->
+    <!-- Controls Dock -->
     <div class="dock-col ctrl-col">
       <button class="ctrl-btn" id="btnStreaming" onclick="toggleStreaming()">Start Streaming</button>
       <button class="ctrl-btn" id="btnRecording" onclick="toggleRecording()">Start Recording</button>
@@ -152,11 +175,11 @@
   </div>
 </div>
 
-<!-- Input File Galeri -->
+<!-- Input Files Picker -->
 <input type="file" id="pickerGalleryImage" accept="image/*" style="display:none;" onchange="handleImageFile(event)" />
 <input type="file" id="pickerGalleryVideo" accept="video/*" style="display:none;" onchange="handleVideoFile(event)" />
 
-<!-- Modal Sources Lengkap -->
+<!-- Modal Sources -->
 <div id="sourcesModal" class="modal-wrap">
   <div class="modal-box">
     <div class="modal-head"><span>Add Source</span><span style="cursor:pointer;" onclick="closeModal('sourcesModal')">✕</span></div>
@@ -192,8 +215,9 @@
   let liveSec = 0, recSec = 0;
   let liveTimer = null, recTimer = null;
   let activeScene = "Scene 1";
-  let activeSourceEl = null;
+  let activeItemObj = null;
 
+  // Scene Data Structure
   let scenesData = {
     "Scene 1": []
   };
@@ -211,7 +235,7 @@
     closeModal("settingsModal");
   }
 
-  /* Scenes & Sources Manager */
+  /* Scenes & Sources UI */
   function renderScenes() {
     const list = document.getElementById("scenesList");
     list.innerHTML = "";
@@ -228,11 +252,11 @@
     const list = document.getElementById("sourcesList");
     list.innerHTML = "";
     const items = scenesData[activeScene] || [];
-    items.forEach((item, idx) => {
+    items.forEach((item) => {
       const row = document.createElement("div");
-      row.className = "list-item" + (item.el === activeSourceEl ? " active" : "");
+      row.className = "list-item" + (item === activeItemObj ? " active" : "");
       row.innerText = item.name;
-      row.onclick = () => selectSourceItem(item.el);
+      row.onclick = () => selectSourceItem(item);
       list.appendChild(row);
     });
   }
@@ -242,11 +266,13 @@
     renderScenes();
     const stage = document.getElementById("previewStage");
     stage.innerHTML = "";
-    activeSourceEl = null;
+    activeItemObj = null;
+    hideMediaToolbar();
+
     if (scenesData[name]) {
       scenesData[name].forEach(item => {
-        stage.appendChild(item.el);
-        attachTransform(item.el);
+        stage.appendChild(item.box);
+        attach8PointTransform(item.box, item);
       });
     }
     renderSourcesList();
@@ -267,36 +293,68 @@
     switchScene(Object.keys(scenesData)[0]);
   }
 
-  function selectSourceItem(el) {
-    activeSourceEl = el;
-    document.querySelectorAll(".obs-item").forEach(i => i.classList.remove("selected"));
-    if (el) el.classList.add("selected");
+  function selectSourceItem(itemObj) {
+    activeItemObj = itemObj;
+    document.querySelectorAll(".obs-bbox").forEach(b => {
+      b.style.borderColor = "transparent";
+      b.querySelectorAll(".obs-handle").forEach(h => h.style.display = "none");
+    });
+
+    if (itemObj && itemObj.box) {
+      itemObj.box.style.borderColor = "#ef4444";
+      itemObj.box.querySelectorAll(".obs-handle").forEach(h => h.style.display = "block");
+
+      // Jika item adalah video galeri, tampilkan media toolbar
+      if (itemObj.type === "video") {
+        showMediaToolbar(itemObj.mediaEl);
+      } else {
+        hideMediaToolbar();
+      }
+    } else {
+      hideMediaToolbar();
+    }
     renderSourcesList();
   }
 
-  function removeSelectedSource() {
-    if (!activeSourceEl) return;
-    activeSourceEl.remove();
-    scenesData[activeScene] = scenesData[activeScene].filter(s => s.el !== activeSourceEl);
-    activeSourceEl = null;
+  function removeActiveSource() {
+    if (!activeItemObj) return;
+    if (activeItemObj.mediaEl && activeItemObj.mediaEl.pause) activeItemObj.mediaEl.pause();
+    activeItemObj.box.remove();
+    scenesData[activeScene] = scenesData[activeScene].filter(s => s !== activeItemObj);
+    activeItemObj = null;
+    hideMediaToolbar();
     renderSourcesList();
   }
 
-  /* Grid Transform (Drag & Scale Resize) */
-  function attachTransform(box) {
-    const resizer = box.querySelector(".obs-resizer");
-    let isDrag = false, isResize = false;
+  /* 8-Point Bounding Box Transform (Drag & Scale Resize) */
+  function attach8PointTransform(box, itemObj) {
+    box.querySelectorAll(".obs-handle").forEach(h => h.remove());
+
+    const handles = ["tl", "tr", "bl", "br", "tm", "bm", "ml", "mr"];
+    handles.forEach(pos => {
+      const h = document.createElement("div");
+      h.className = "obs-handle h-" + pos;
+      h.dataset.pos = pos;
+      box.appendChild(h);
+    });
+
+    let isDrag = false, isResize = false, handleType = "";
     let sx, sy, sl, st, sw, sh;
 
     function down(e) {
       e.stopPropagation();
-      selectSourceItem(box);
+      selectSourceItem(itemObj);
       const p = e.touches ? e.touches[0] : e;
       sx = p.clientX; sy = p.clientY;
       sl = box.offsetLeft; st = box.offsetTop;
       sw = box.offsetWidth; sh = box.offsetHeight;
-      if (e.target === resizer) isResize = true;
-      else isDrag = true;
+
+      if (e.target.classList.contains("obs-handle")) {
+        isResize = true;
+        handleType = e.target.dataset.pos;
+      } else {
+        isDrag = true;
+      }
     }
 
     function move(e) {
@@ -304,12 +362,32 @@
       const p = e.touches ? e.touches[0] : e;
       const dx = p.clientX - sx;
       const dy = p.clientY - sy;
+
       if (isDrag) {
         box.style.left = Math.max(0, sl + dx) + "px";
         box.style.top = Math.max(0, st + dy) + "px";
       } else if (isResize) {
-        box.style.width = Math.max(40, sw + dx) + "px";
-        box.style.height = Math.max(40, sh + dy) + "px";
+        if (handleType === "br") {
+          box.style.width = Math.max(40, sw + dx) + "px";
+          box.style.height = Math.max(30, sh + dy) + "px";
+        } else if (handleType === "bl") {
+          box.style.left = (sl + dx) + "px";
+          box.style.width = Math.max(40, sw - dx) + "px";
+          box.style.height = Math.max(30, sh + dy) + "px";
+        } else if (handleType === "tr") {
+          box.style.top = (st + dy) + "px";
+          box.style.width = Math.max(40, sw + dx) + "px";
+          box.style.height = Math.max(30, sh - dy) + "px";
+        } else if (handleType === "tl") {
+          box.style.left = (sl + dx) + "px";
+          box.style.top = (st + dy) + "px";
+          box.style.width = Math.max(40, sw - dx) + "px";
+          box.style.height = Math.max(30, sh - dy) + "px";
+        } else if (handleType === "mr") {
+          box.style.width = Math.max(40, sw + dx) + "px";
+        } else if (handleType === "bm") {
+          box.style.height = Math.max(30, sh + dy) + "px";
+        }
       }
     }
 
@@ -323,11 +401,11 @@
     window.addEventListener("touchend", up);
   }
 
-  function createSourceBox(innerMedia, title, w, h) {
+  function createSourceBox(innerMedia, title, type, w, h) {
     const box = document.createElement("div");
-    box.className = "obs-item selected";
-    box.style.width = (w || 240) + "px";
-    box.style.height = (h || 135) + "px";
+    box.className = "obs-bbox";
+    box.style.width = (w || 260) + "px";
+    box.style.height = (h || 146) + "px";
     box.style.left = "20px";
     box.style.top = "20px";
 
@@ -337,19 +415,16 @@
     innerMedia.style.pointerEvents = "none";
     box.appendChild(innerMedia);
 
-    const resizer = document.createElement("div");
-    resizer.className = "obs-resizer";
-    box.appendChild(resizer);
-
     document.getElementById("previewStage").appendChild(box);
-    attachTransform(box);
-    selectSourceItem(box);
 
-    scenesData[activeScene].push({ name: title, el: box });
-    renderSourcesList();
+    const itemObj = { name: title, type: type, box: box, mediaEl: innerMedia };
+    attach8PointTransform(box, itemObj);
+    scenesData[activeScene].push(itemObj);
+
+    selectSourceItem(itemObj);
   }
 
-  /* Sources Handlers */
+  /* Sources Action Handlers */
   function triggerPicker(type) {
     closeModal("sourcesModal");
     if (type === "image") document.getElementById("pickerGalleryImage").click();
@@ -361,7 +436,7 @@
     if (!file) return;
     const img = document.createElement("img");
     img.src = URL.createObjectURL(file);
-    createSourceBox(img, "🖼️ " + file.name, 200, 150);
+    createSourceBox(img, "🖼️ " + file.name, "image", 220, 160);
   }
 
   function handleVideoFile(e) {
@@ -369,8 +444,13 @@
     if (!file) return;
     const vid = document.createElement("video");
     vid.src = URL.createObjectURL(file);
-    vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
-    createSourceBox(vid, "🎬 " + file.name, 260, 146);
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.play();
+
+    createSourceBox(vid, "🎬 " + file.name, "video", 260, 146);
   }
 
   function startCamera(facing) {
@@ -380,9 +460,10 @@
         const vid = document.createElement("video");
         vid.autoplay = true; vid.muted = true; vid.playsInline = true;
         vid.srcObject = stream;
-        createSourceBox(vid, facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera", 260, 146);
+        vid.play();
+        createSourceBox(vid, facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera", "camera", 260, 146);
       })
-      .catch(err => console.error(err));
+      .catch(err => alert("Kamera error: " + err.message));
   }
 
   function addDroneRTSP() {
@@ -392,8 +473,8 @@
     const box = document.createElement("div");
     box.style.background = "#1f2937"; box.style.color = "#60a5fa"; box.style.display = "flex";
     box.style.alignItems = "center"; box.style.justifyContent = "center"; box.style.fontSize = "12px";
-    box.innerText = "🛸 DRONE LIVE FEED";
-    createSourceBox(box, "🛸 " + u, 260, 146);
+    box.innerText = "🛸 DRONE LIVE STREAM";
+    createSourceBox(box, "🛸 " + u, "drone", 260, 146);
   }
 
   function addTextSource() {
@@ -403,17 +484,68 @@
     const d = document.createElement("div");
     d.style.color = "#fff"; d.style.fontWeight = "bold"; d.style.fontSize = "18px";
     d.style.textShadow = "2px 2px 4px #000"; d.innerText = txt;
-    createSourceBox(d, "📝 " + txt, 200, 40);
+    createSourceBox(d, "📝 " + txt, "text", 200, 40);
   }
 
   function addColorSource() {
     closeModal("sourcesModal");
     const d = document.createElement("div");
     d.style.background = "#2563eb";
-    createSourceBox(d, "⬛ Color Source", 180, 100);
+    createSourceBox(d, "⬛ Color Source", "color", 180, 100);
   }
 
-  /* Studio Mode Dual Monitors */
+  /* Media Toolbar Controls */
+  let activeVideoEl = null;
+
+  function showMediaToolbar(videoEl) {
+    activeVideoEl = videoEl;
+    const bar = document.getElementById("mediaToolbar");
+    bar.style.display = "flex";
+
+    videoEl.ontimeupdate = () => {
+      if (!videoEl.duration) return;
+      const prog = (videoEl.currentTime / videoEl.duration) * 100;
+      document.getElementById("mediaProgress").value = prog;
+      document.getElementById("mediaTimeLabel").innerText = fmtFltTime(videoEl.currentTime) + " / " + fmtFltTime(videoEl.duration);
+    };
+  }
+
+  function hideMediaToolbar() {
+    document.getElementById("mediaToolbar").style.display = "none";
+    activeVideoEl = null;
+  }
+
+  function toggleMediaPlay() {
+    if (!activeVideoEl) return;
+    const btn = document.getElementById("mediaPlayBtn");
+    if (activeVideoEl.paused) {
+      activeVideoEl.play();
+      btn.innerText = "⏸";
+    } else {
+      activeVideoEl.pause();
+      btn.innerText = "▶";
+    }
+  }
+
+  function stopActiveMedia() {
+    if (!activeVideoEl) return;
+    activeVideoEl.pause();
+    activeVideoEl.currentTime = 0;
+    document.getElementById("mediaPlayBtn").innerText = "▶";
+  }
+
+  function seekActiveMedia(val) {
+    if (!activeVideoEl || !activeVideoEl.duration) return;
+    activeVideoEl.currentTime = (val / 100) * activeVideoEl.duration;
+  }
+
+  function fmtFltTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  /* Studio Mode Dual Screen & Transition Fix */
   function toggleStudioMode() {
     isStudio = !isStudio;
     const trans = document.getElementById("transBar");
@@ -435,29 +567,51 @@
   }
 
   function execTransition(type) {
-    const preview = document.getElementById("previewStage");
-    const program = document.getElementById("programStage");
-    if (!preview || !program) return;
+    const previewStage = document.getElementById("previewStage");
+    const programStage = document.getElementById("programStage");
+    if (!previewStage || !programStage) return;
 
     if (type === "fade") {
-      program.style.opacity = "0.2";
+      programStage.style.transition = "opacity 0.2s";
+      programStage.style.opacity = "0.2";
       setTimeout(() => {
-        cloneToProgram(preview, program);
-        program.style.opacity = "1";
+        syncProgramStage(previewStage, programStage);
+        programStage.style.opacity = "1";
       }, 150);
     } else {
-      cloneToProgram(preview, program);
+      syncProgramStage(previewStage, programStage);
     }
   }
 
-  function cloneToProgram(src, dest) {
-    dest.innerHTML = src.innerHTML;
-    // Hilangkan seleksi dan resizer di layar program On-Air
-    dest.querySelectorAll(".obs-item").forEach(item => {
-      item.style.border = "none";
-      item.style.boxShadow = "none";
-      const r = item.querySelector(".obs-resizer");
-      if (r) r.remove();
+  // Clone elemen Preview ke Program dan pastikan stream/video terus bergerak (tidak freeze)
+  function syncProgramStage(src, dest) {
+    dest.innerHTML = "";
+
+    const items = src.querySelectorAll(".obs-bbox");
+    items.forEach(item => {
+      const clone = item.cloneNode(true);
+      clone.style.border = "none";
+      clone.style.boxShadow = "none";
+      clone.querySelectorAll(".obs-handle").forEach(h => h.remove());
+
+      // Sambungkan kembali stream video / camera
+      const originalVideo = item.querySelector("video");
+      const clonedVideo = clone.querySelector("video");
+
+      if (originalVideo && clonedVideo) {
+        if (originalVideo.srcObject) {
+          clonedVideo.srcObject = originalVideo.srcObject;
+        } else if (originalVideo.src) {
+          clonedVideo.src = originalVideo.src;
+          clonedVideo.currentTime = originalVideo.currentTime;
+        }
+        clonedVideo.autoplay = true;
+        clonedVideo.muted = true;
+        clonedVideo.playsInline = true;
+        clonedVideo.play().catch(() => {});
+      }
+
+      dest.appendChild(clone);
     });
   }
 

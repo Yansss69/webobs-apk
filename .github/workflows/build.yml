@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v3.0-FINAL.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v3.1-PRO.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v3.0-final-${{ github.run_number }}"
-        name: "WebOBS Studio v3.0 FINAL (Build #${{ github.run_number }})"
-        body: "WebOBS Studio v3.0 Final: Dual Screen Studio Mode, Drag/Resize Grid Merah, Galeri Android Langsung, dB Audio Real-time."
-        files: package_output/WebOBS-v3.0-FINAL.apk
+        tag_name: "v3.1-pro-${{ github.run_number }}"
+        name: "WebOBS Studio v3.1 PRO (Build #${{ github.run_number }})"
+        body: "Perbaikan: Video sinkron bergerak di Program (tidak freeze), 8-point bounding box, media toolbar play/pause/seekbar aktif, Studio Mode stabil."
+        files: package_output/WebOBS-v3.1-PRO.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
