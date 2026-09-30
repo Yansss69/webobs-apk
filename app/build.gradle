@@ -26,5 +26,5 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    // Tanpa library AndroidX kompleks agar tidak perlu download resource berat
 }
