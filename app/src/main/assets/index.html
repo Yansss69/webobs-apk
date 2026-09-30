@@ -891,6 +891,50 @@
   function pad2(n) { return String(n).padStart(2, "0"); }
   function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
+  
+  let whipPeerConnection = null;
+
+  async function pushCanvasViaWhip() {
+    try {
+      const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
+      const stream = targetCanvas.captureStream(30);
+
+      if (window.micAudioStream) {
+        window.micAudioStream.getAudioTracks().forEach(track => stream.addTrack(track));
+      }
+
+      whipPeerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+
+      stream.getTracks().forEach(track => whipPeerConnection.addTrack(track, stream));
+
+      const offer = await whipPeerConnection.createOffer();
+      await whipPeerConnection.setLocalDescription(offer);
+
+      // Kirim SDP Offer ke MediaMTX WHEP/WHIP lokal
+      fetch("http://127.0.0.1:8889/live/whip", {
+        method: "POST",
+        headers: { "Content-Type": "application/sdp" },
+        body: offer.sdp
+      }).then(res => res.text()).then(answerSdp => {
+        whipPeerConnection.setRemoteDescription(new RTCSessionDescription({
+          type: "answer",
+          sdp: answerSdp
+        }));
+      }).catch(err => console.log("WHIP connect notice:", err));
+    } catch (e) {
+      console.error("WHIP Error:", e);
+    }
+  }
+
+  function stopWhipStream() {
+    if (whipPeerConnection) {
+      whipPeerConnection.close();
+      whipPeerConnection = null;
+    }
+  }
+
   function toggleStream() {
     const btn = document.getElementById("btnStream");
     if (!isStreaming) {
@@ -912,17 +956,19 @@
         document.getElementById("lblKbit").innerText = "Kbit/s: " + (3300 + Math.floor(Math.random()*300));
       }, 1000);
 
-      if (window.AndroidBridge && window.AndroidBridge.notifyStreamState) {
-        window.AndroidBridge.notifyStreamState(true, sUrl, sKey);
+      if (window.AndroidBridge && window.AndroidBridge.startStreamToFacebook) {
+        window.AndroidBridge.startStreamToFacebook(sUrl, sKey);
       }
+      pushCanvasViaWhip();
     } else {
       isStreaming = false;
       btn.innerText = "Start Streaming";
       btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
-      if (window.AndroidBridge && window.AndroidBridge.notifyStreamState) {
-        window.AndroidBridge.notifyStreamState(false, "", "");
+      if (window.AndroidBridge && window.AndroidBridge.stopStream) {
+        window.AndroidBridge.stopStream();
       }
+      stopWhipStream();
     }
   }
 

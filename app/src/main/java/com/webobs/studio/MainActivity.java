@@ -12,16 +12,19 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -36,14 +39,12 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         hideSystemUI();
         checkAndRequestSystemPermissions();
-        startEmbeddedMediaMTX();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -78,7 +79,73 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Bridge JS ke Android Native untuk kontrol koneksi RTMP Facebook
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void startStreamToFacebook(String rtmpUrl, String streamKey) {
+                runOnUiThread(() -> {
+                    startMediaMTXRelay(rtmpUrl, streamKey);
+                    Toast.makeText(MainActivity.this, "Mengirim sinyal ke Facebook Live...", Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @JavascriptInterface
+            public void stopStream() {
+                runOnUiThread(() -> {
+                    stopMediaMTXProcess();
+                    Toast.makeText(MainActivity.this, "Live Facebook Dihentikan", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }, "AndroidBridge");
+
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void startMediaMTXRelay(String rtmpUrl, String streamKey) {
+        new Thread(() -> {
+            try {
+                stopMediaMTXProcess();
+
+                File binFile = new File(getFilesDir(), "mediamtx");
+                if (!binFile.exists() || binFile.length() == 0) {
+                    copyAsset("mediamtx", binFile);
+                    binFile.setExecutable(true, false);
+                }
+
+                // Format RTMPS Facebook Live lengkap
+                String fullTarget = rtmpUrl.trim();
+                if (!fullTarget.endsWith("/")) fullTarget += "/";
+                fullTarget += streamKey.trim();
+
+                // Buat konfigurasi mediamtx on-the-fly dengan runOnInit / push RTMP aktif
+                String confContent = 
+                    "api: yes\n" +
+                    "apiAddress: :9997\n" +
+                    "webrtcAddress: :8889\n" +
+                    "paths:\n" +
+                    "  live:\n" +
+                    "    source: publisher\n" +
+                    "    runOnPublish: ffmpeg -i rtmp://localhost:1935/live -c:v copy -c:a aac -f flv \"" + fullTarget + "\"\n";
+
+                File confFile = new File(getFilesDir(), "mediamtx.yml");
+                try (FileOutputStream fos = new FileOutputStream(confFile)) {
+                    fos.write(confContent.getBytes(StandardCharsets.UTF_8));
+                }
+
+                ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
+                pb.directory(getFilesDir());
+                mediaMtxProcess = pb.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void stopMediaMTXProcess() {
+        if (mediaMtxProcess != null) {
+            mediaMtxProcess.destroy();
+            mediaMtxProcess = null;
+        }
     }
 
     @Override
@@ -136,23 +203,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startEmbeddedMediaMTX() {
-        new Thread(() -> {
-            try {
-                File binFile = new File(getFilesDir(), "mediamtx");
-                File confFile = new File(getFilesDir(), "mediamtx.yml");
-                if (!binFile.exists() || binFile.length() == 0) {
-                    copyAsset("mediamtx", binFile);
-                    binFile.setExecutable(true, false);
-                }
-                if (!confFile.exists()) copyAsset("mediamtx.yml", confFile);
-                ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
-                pb.directory(getFilesDir());
-                mediaMtxProcess = pb.start();
-            } catch (Exception ignored) {}
-        }).start();
-    }
-
     private void copyAsset(String assetName, File outFile) throws Exception {
         try (InputStream in = getAssets().open(assetName); OutputStream out = new FileOutputStream(outFile)) {
             byte[] buffer = new byte[8192];
@@ -165,6 +215,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mediaMtxProcess != null) mediaMtxProcess.destroy();
+        stopMediaMTXProcess();
     }
 }
