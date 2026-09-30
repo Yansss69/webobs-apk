@@ -5,441 +5,714 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OBS Studio Native Mobile</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body, html { width: 100vw; height: 100vh; overflow: hidden; background: #14151b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #dcddde; user-select: none; }
-    #app { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
+    /* OBS Yami Theme Global */
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+    html, body {
+      width: 100vw; height: 100vh; overflow: hidden;
+      background: #181920; color: #dcddde;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 11px; user-select: none;
+    }
+    #obs-root { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
 
     /* Top Menu Bar */
-    .topbar { height: 26px; background: #1f2029; display: flex; align-items: center; padding: 0 10px; font-size: 11px; gap: 14px; border-bottom: 1px solid #2d2f3d; flex-shrink: 0; }
-    .topbar span { cursor: pointer; color: #b9bbbe; }
-    .topbar span:hover { color: #fff; }
+    .obs-menubar {
+      height: 24px; background: #20212b; border-bottom: 1px solid #2d2f3d;
+      display: flex; align-items: center; padding: 0 8px; gap: 12px; font-size: 11px; flex-shrink: 0;
+    }
+    .obs-menu-item { color: #b9bbbe; cursor: pointer; }
+    .obs-menu-item:hover, .obs-menu-item:active { color: #fff; }
 
-    /* Monitor Viewport */
-    .viewport-area { flex: 1; display: flex; flex-direction: column; background: #0b0c10; position: relative; overflow: hidden; padding: 4px; gap: 4px; }
-    .monitors-wrap { flex: 1; display: flex; width: 100%; height: 100%; gap: 6px; position: relative; }
+    /* Viewport Stage (Monitor Preview / Program) */
+    .obs-stage-wrap {
+      flex: 1; display: flex; flex-direction: column; background: #0f1015;
+      padding: 4px; gap: 4px; overflow: hidden; position: relative;
+    }
+    .obs-monitors-container {
+      flex: 1; display: flex; width: 100%; height: 100%; gap: 6px; position: relative;
+    }
+    .obs-monitor {
+      flex: 1; height: 100%; display: flex; flex-direction: column;
+      background: #000; border: 1px solid #2d2f3d; position: relative; overflow: hidden;
+    }
+    .obs-monitor.preview-border { border-color: #2563eb; }
+    .obs-monitor.program-border { border-color: #dc2626; }
     
-    .monitor-box { flex: 1; height: 100%; display: flex; flex-direction: column; background: #000; position: relative; }
-    .monitor-header { height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; padding: 0 6px; justify-content: space-between; flex-shrink: 0; }
-    .preview-header { background: #1e3a8a; color: #93c5fd; }
-    .program-header { background: #7f1d1d; color: #fca5a5; }
+    .obs-monitor-title {
+      height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 0.8px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 6px; flex-shrink: 0;
+    }
+    .title-preview { background: #1e3a8a; color: #bfdbfe; }
+    .title-program { background: #7f1d1d; color: #fecaca; }
 
-    .stage-canvas { flex: 1; width: 100%; height: 100%; position: relative; overflow: hidden; background: #0d0e12; touch-action: none; }
+    .obs-canvas-box {
+      flex: 1; position: relative; overflow: hidden; background: #0b0c10;
+      display: flex; align-items: center; justify-content: center;
+    }
+    canvas.obs-display {
+      background: #000; width: 100%; height: 100%; object-fit: contain;
+    }
 
     /* OBS 8-Point Bounding Box */
-    .obs-bbox { position: absolute; border: 2px solid #ef4444; touch-action: none; }
-    .obs-bbox.selected { border-color: #ef4444; }
-    .obs-handle { position: absolute; width: 10px; height: 10px; background: #ffffff; border: 2px solid #ef4444; border-radius: 2px; }
-    .h-tl { left: -5px; top: -5px; cursor: nw-resize; }
-    .h-tr { right: -5px; top: -5px; cursor: ne-resize; }
-    .h-bl { left: -5px; bottom: -5px; cursor: sw-resize; }
-    .h-br { right: -5px; bottom: -5px; cursor: se-resize; }
-    .h-tm { left: calc(50% - 5px); top: -5px; cursor: n-resize; }
-    .h-bm { left: calc(50% - 5px); bottom: -5px; cursor: s-resize; }
-    .h-ml { left: -5px; top: calc(50% - 5px); cursor: w-resize; }
-    .h-mr { right: -5px; top: calc(50% - 5px); cursor: e-resize; }
+    .obs-bbox {
+      position: absolute; border: 2px solid #ef4444; touch-action: none;
+      box-sizing: border-box; pointer-events: all;
+    }
+    .obs-handle {
+      position: absolute; width: 9px; height: 9px; background: #ffffff;
+      border: 2px solid #ef4444; border-radius: 1px; box-sizing: border-box;
+    }
+    .h-tl { left: -5px; top: -5px; }
+    .h-tr { right: -5px; top: -5px; }
+    .h-bl { left: -5px; bottom: -5px; }
+    .h-br { right: -5px; bottom: -5px; }
+    .h-tm { left: calc(50% - 5px); top: -5px; }
+    .h-bm { left: calc(50% - 5px); bottom: -5px; }
+    .h-ml { left: -5px; top: calc(50% - 5px); }
+    .h-mr { right: -5px; top: calc(50% - 5px); }
 
-    /* Transition Bar */
-    .trans-bar { width: 75px; display: none; flex-direction: column; justify-content: center; gap: 8px; align-items: center; flex-shrink: 0; }
-    .trans-btn { width: 100%; background: #272936; border: 1px solid #3c3f52; color: #fff; font-size: 10px; font-weight: bold; padding: 8px 2px; border-radius: 4px; cursor: pointer; }
-    .trans-btn:active { background: #5865f2; }
+    /* Studio Mode Center Transition Bar */
+    .obs-trans-bar {
+      width: 75px; display: none; flex-direction: column; justify-content: center;
+      gap: 6px; align-items: center; flex-shrink: 0;
+    }
+    .obs-btn-trans {
+      width: 100%; background: #282a38; border: 1px solid #3c3f52; color: #fff;
+      font-size: 10px; font-weight: bold; padding: 7px 2px; border-radius: 3px; cursor: pointer;
+    }
+    .obs-btn-trans.active-t { background: #2563eb; border-color: #3b82f6; }
 
-    /* Media Playback Toolbar (Play/Pause/Seekbar) */
-    .media-toolbar { height: 26px; background: #161720; border: 1px solid #2d2f3d; display: none; align-items: center; padding: 0 8px; gap: 8px; font-size: 11px; flex-shrink: 0; }
-    .media-btn { background: transparent; border: none; color: #dcddde; cursor: pointer; font-size: 12px; }
-    .media-progress { flex: 1; accent-color: #5865f2; height: 4px; }
-    .media-time { font-size: 10px; color: #8e9297; font-family: monospace; }
+    /* OBS Media Controls Toolbar */
+    .obs-media-bar {
+      height: 26px; background: #1a1b24; border: 1px solid #2d2f3d; border-radius: 3px;
+      display: none; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
+    }
+    .obs-media-btn {
+      background: none; border: none; color: #dcddde; cursor: pointer; font-size: 11px; padding: 2px 4px;
+    }
+    .obs-media-btn:hover { color: #fff; }
+    .obs-seekbar {
+      flex: 1; height: 4px; accent-color: #5865f2; cursor: pointer;
+    }
+    .obs-media-time { font-family: monospace; font-size: 10px; color: #8e9297; }
 
-    /* Bottom Control Docks */
-    .dock-area { height: 130px; background: #1a1b24; border-top: 1px solid #2d2f3d; display: flex; flex-shrink: 0; }
-    .dock-col { border-right: 1px solid #2d2f3d; display: flex; flex-direction: column; }
-    .dock-title { font-size: 9px; font-weight: bold; padding: 4px 8px; background: #161720; color: #8e9297; text-transform: uppercase; border-bottom: 1px solid #262836; display: flex; justify-content: space-between; }
-    .dock-list { flex: 1; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
-    .dock-actions { height: 26px; background: #161720; display: flex; align-items: center; gap: 4px; padding: 0 6px; border-top: 1px solid #262836; }
-    .dock-btn { background: #282a3a; border: 1px solid #3a3d52; color: #dcddde; min-width: 22px; height: 20px; font-size: 11px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .dock-btn:active { background: #5865f2; color: #fff; }
+    /* Bottom OBS Docks */
+    .obs-docks {
+      height: 135px; background: #1f202b; border-top: 1px solid #2d2f3d;
+      display: flex; flex-shrink: 0;
+    }
+    .obs-dock-panel {
+      border-right: 1px solid #2d2f3d; display: flex; flex-direction: column; position: relative;
+    }
+    .obs-dock-header {
+      height: 20px; font-size: 9px; font-weight: bold; text-transform: uppercase;
+      background: #171821; color: #8e9297; padding: 0 8px; display: flex;
+      align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2c3a;
+    }
+    .obs-dock-content {
+      flex: 1; overflow-y: auto; padding: 3px; display: flex; flex-direction: column; gap: 2px;
+    }
+    .obs-dock-footer {
+      height: 26px; background: #171821; border-top: 1px solid #2a2c3a;
+      display: flex; align-items: center; padding: 0 4px; gap: 3px;
+    }
+    .obs-dock-btn {
+      background: #282a3a; border: 1px solid #3c3f54; color: #dcddde;
+      min-width: 22px; height: 20px; font-size: 11px; border-radius: 3px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .obs-dock-btn:active { background: #5865f2; color: #fff; }
 
-    .list-item { font-size: 11px; padding: 4px 6px; border-radius: 3px; background: #232533; color: #dcddde; cursor: pointer; }
-    .list-item.active { background: #5865f2; color: #fff; font-weight: bold; }
+    .obs-item-row {
+      padding: 4px 6px; font-size: 11px; border-radius: 2px; background: #262837;
+      color: #dcddde; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    }
+    .obs-item-row.selected { background: #5865f2; color: #fff; font-weight: 500; }
 
-    /* Controls Panel */
-    .ctrl-col { width: 130px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
-    .ctrl-btn { flex: 1; background: #262837; border: 1px solid #383b50; color: #dcddde; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: 500; }
-    .ctrl-btn:active { background: #40445a; }
-    .live-active { background: #ed4245 !important; color: #fff !important; font-weight: bold; }
-    .rec-active { background: #ed4245 !important; color: #fff !important; font-weight: bold; }
+    /* Audio Mixer Dock */
+    .mixer-channel {
+      display: flex; flex-direction: column; gap: 4px; padding: 8px; width: 100%;
+    }
+    .mixer-label-row {
+      display: flex; justify-content: space-between; font-size: 10px; font-weight: bold;
+    }
+    .obs-vu-track {
+      width: 100%; height: 8px; background: #12131a; border-radius: 2px;
+      position: relative; overflow: hidden; border: 1px solid #2a2c3a;
+    }
+    .obs-vu-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(to right, #22c55e 0%, #22c55e 70%, #eab308 85%, #ef4444 100%);
+      transition: width 0.05s ease-out;
+    }
+    .obs-fader { width: 100%; accent-color: #5865f2; cursor: pointer; height: 14px; }
+
+    /* Controls Dock */
+    .controls-panel {
+      width: 135px; padding: 5px; display: flex; flex-direction: column; gap: 3px; border-right: none;
+    }
+    .obs-ctrl-btn {
+      flex: 1; background: #282a3a; border: 1px solid #3a3d52; color: #dcddde;
+      border-radius: 3px; font-size: 10px; font-weight: 500; cursor: pointer;
+    }
+    .obs-ctrl-btn:active { background: #3e4258; }
+    .obs-live-on { background: #dc2626 !important; color: #fff !important; font-weight: bold; }
+    .obs-rec-on { background: #dc2626 !important; color: #fff !important; font-weight: bold; }
 
     /* Status Bar */
-    .statusbar { height: 20px; background: #111217; display: flex; align-items: center; padding: 0 8px; font-size: 10px; color: #72767d; gap: 14px; border-top: 1px solid #22232e; flex-shrink: 0; }
+    .obs-statusbar {
+      height: 20px; background: #13141a; border-top: 1px solid #20212b;
+      display: flex; align-items: center; padding: 0 10px; font-size: 10px; color: #72767d; gap: 16px; flex-shrink: 0;
+    }
+    .status-badge { display: flex; align-items: center; gap: 4px; }
 
-    /* Modals */
-    .modal-wrap { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; }
-    .modal-box { background: #20212b; border: 1px solid #303242; border-radius: 6px; width: 340px; max-height: 85vh; overflow-y: auto; padding: 14px; color: #dcddde; }
-    .modal-head { font-size: 12px; font-weight: bold; border-bottom: 1px solid #303242; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; }
-    .src-opt { background: #282a3a; border: 1px solid #3a3d52; color: #fff; padding: 8px 10px; border-radius: 4px; text-align: left; font-size: 11px; cursor: pointer; margin-bottom: 5px; width: 100%; }
-    .src-opt:active { background: #5865f2; }
-    .form-row { margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
-    .form-row label { font-size: 10px; color: #8e9297; }
-    .form-row input, .form-row select { background: #161720; border: 1px solid #303242; color: #fff; padding: 5px; border-radius: 3px; font-size: 11px; outline: none; }
+    /* Modal System OBS */
+    .obs-modal-mask {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.85); z-index: 99999; align-items: center; justify-content: center;
+    }
+    .obs-dialog {
+      background: #20212b; border: 1px solid #303242; border-radius: 6px;
+      width: 350px; max-height: 85vh; overflow-y: auto; padding: 12px; color: #dcddde;
+      box-shadow: 0 10px 30px #000;
+    }
+    .obs-dialog-head {
+      font-size: 12px; font-weight: bold; border-bottom: 1px solid #303242;
+      padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between;
+    }
+    .obs-dlg-btn {
+      width: 100%; background: #292b3b; border: 1px solid #3d4158; color: #fff;
+      padding: 8px 10px; border-radius: 4px; text-align: left; font-size: 11px;
+      margin-bottom: 5px; cursor: pointer;
+    }
+    .obs-dlg-btn:active { background: #5865f2; }
+    .obs-field { margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .obs-field label { font-size: 10px; color: #8e9297; text-transform: uppercase; }
+    .obs-field input, .obs-field select {
+      background: #14151c; border: 1px solid #303242; color: #fff; padding: 6px;
+      border-radius: 3px; font-size: 11px;
+    }
   </style>
 </head>
 <body>
-<div id="app">
-  <!-- Topbar -->
-  <div class="topbar">
-    <span>File</span><span>Edit</span><span>View</span><span>Profile</span><span>Scene Collection</span><span>Tools</span><span>Help</span>
+<div id="obs-root">
+  <!-- Topbar Menu -->
+  <div class="obs-menubar">
+    <span class="obs-menu-item">File</span>
+    <span class="obs-menu-item">Edit</span>
+    <span class="obs-menu-item">View</span>
+    <span class="obs-menu-item">Profile</span>
+    <span class="obs-menu-item">Scene Collection</span>
+    <span class="obs-menu-item">Tools</span>
+    <span class="obs-menu-item">Help</span>
   </div>
 
-  <!-- Viewport Area -->
-  <div class="viewport-area">
-    <div class="monitors-wrap" id="monitorsWrap">
+  <!-- Monitors Viewport -->
+  <div class="obs-stage-wrap">
+    <div class="obs-monitors-container">
       <!-- Preview Monitor -->
-      <div class="monitor-box" id="previewMonitorBox" style="border: 1px solid #2563eb;">
-        <div class="monitor-header preview-header" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
-        <div class="stage-canvas" id="previewStage"></div>
+      <div class="obs-monitor preview-border" id="previewMonitor">
+        <div class="obs-monitor-title title-preview" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
+        <div class="obs-canvas-box" id="previewStageBox">
+          <canvas class="obs-display" id="previewCanvas" width="1280" height="720"></canvas>
+          <div id="previewInteractiveOverlay" style="position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none;"></div>
+        </div>
       </div>
-      <!-- Center Transition Bar -->
-      <div class="trans-bar" id="transBar">
-        <button class="trans-btn" onclick="execTransition('cut')">CUT</button>
-        <button class="trans-btn" onclick="execTransition('fade')" style="background:#2563eb;">TRANSITION</button>
+
+      <!-- Transition Controls Bar -->
+      <div class="obs-trans-bar" id="transBar">
+        <button class="obs-btn-trans" onclick="execTransition('cut')">CUT</button>
+        <button class="obs-btn-trans active-t" onclick="execTransition('fade')">TRANSITION</button>
       </div>
+
       <!-- Program Monitor -->
-      <div class="monitor-box" id="programMonitorBox" style="display:none; border: 1px solid #dc2626;">
-        <div class="monitor-header program-header"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
-        <div class="stage-canvas" id="programStage"></div>
+      <div class="obs-monitor program-border" id="programMonitor" style="display:none;">
+        <div class="obs-monitor-title title-program"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
+        <div class="obs-canvas-box">
+          <canvas class="obs-display" id="programCanvas" width="1280" height="720"></canvas>
+        </div>
       </div>
     </div>
 
     <!-- Media Controls Toolbar -->
-    <div class="media-toolbar" id="mediaToolbar">
-      <button class="media-btn" id="mediaPlayBtn" onclick="toggleMediaPlay()">⏸</button>
-      <button class="media-btn" onclick="stopActiveMedia()">⏹</button>
-      <input type="range" class="media-progress" id="mediaProgress" min="0" max="100" value="0" oninput="seekActiveMedia(this.value)">
-      <span class="media-time" id="mediaTimeLabel">00:00 / 00:00</span>
+    <div class="obs-media-bar" id="mediaToolbar">
+      <button class="obs-media-btn" id="mPlayBtn" onclick="togglePlayMedia()">⏸</button>
+      <button class="obs-media-btn" onclick="stopMedia()">⏹</button>
+      <button class="obs-media-btn" onclick="restartMedia()">⏮</button>
+      <input type="range" class="obs-seekbar" id="mSeekbar" min="0" max="100" value="0" oninput="onSeekMedia(this.value)">
+      <span class="obs-media-time" id="mTimeLabel">00:00:00 / 00:00:00</span>
     </div>
   </div>
 
-  <!-- Bottom Docks Area -->
-  <div class="dock-area">
-    <!-- Scenes -->
-    <div class="dock-col" style="width: 140px;">
-      <div class="dock-title">Scenes</div>
-      <div class="dock-list" id="scenesList"></div>
-      <div class="dock-actions">
-        <button class="dock-btn" onclick="promptAddScene()">+</button>
-        <button class="dock-btn" onclick="removeActiveScene()">-</button>
+  <!-- Bottom Docks -->
+  <div class="obs-docks">
+    <!-- Scenes Dock -->
+    <div class="obs-dock-panel" style="width: 140px;">
+      <div class="obs-dock-header">Scenes</div>
+      <div class="obs-dock-content" id="scenesDockList"></div>
+      <div class="obs-dock-footer">
+        <button class="obs-dock-btn" onclick="addScenePrompt()">+</button>
+        <button class="obs-dock-btn" onclick="removeScene()">-</button>
+        <button class="obs-dock-btn" onclick="renameScenePrompt()">✎</button>
       </div>
     </div>
-    <!-- Sources -->
-    <div class="dock-col" style="width: 180px;">
-      <div class="dock-title">Sources</div>
-      <div class="dock-list" id="sourcesList"></div>
-      <div class="dock-actions">
-        <button class="dock-btn" onclick="openSourcesModal()">+</button>
-        <button class="dock-btn" onclick="removeActiveSource()">-</button>
+
+    <!-- Sources Dock -->
+    <div class="obs-dock-panel" style="width: 180px;">
+      <div class="obs-dock-header">Sources</div>
+      <div class="obs-dock-content" id="sourcesDockList"></div>
+      <div class="obs-dock-footer">
+        <button class="obs-dock-btn" onclick="openAddSourceModal()">+</button>
+        <button class="obs-dock-btn" onclick="removeActiveSource()">-</button>
+        <button class="obs-dock-btn" onclick="moveLayerUp()">▲</button>
+        <button class="obs-dock-btn" onclick="moveLayerDown()">▼</button>
       </div>
     </div>
-    <!-- Audio Mixer -->
-    <div class="dock-col" style="flex: 1;">
-      <div class="dock-title"><span>Audio Mixer</span><span style="color:#3ba55c; font-size:8px;">REAL-TIME</span></div>
-      <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; font-size: 11px;">
-          <span>Mic/Aux</span>
-          <span id="dbDisplay" style="color: #3ba55c;">-60 dB</span>
+
+    <!-- Audio Mixer Dock -->
+    <div class="obs-dock-panel" style="flex: 1;">
+      <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● LIVE</span></div>
+      <div class="obs-dock-content">
+        <div class="mixer-channel">
+          <div class="mixer-label-row">
+            <span>Mic/Aux</span>
+            <span id="dbNumLabel" style="color:#22c55e;">-inf dB</span>
+          </div>
+          <div class="obs-vu-track">
+            <div class="obs-vu-fill" id="vuMeterBar"></div>
+          </div>
+          <input type="range" class="obs-fader" id="volFader" min="0" max="100" value="85" oninput="setMicVolume(this.value)">
         </div>
-        <input type="range" id="micSlider" min="0" max="100" value="85" style="width: 100%; accent-color: #5865f2;">
       </div>
     </div>
-    <!-- Transitions Dock -->
-    <div class="dock-col" style="width: 130px;">
-      <div class="dock-title">Transitions</div>
-      <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
-        <select style="background:#161720; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;"><option>Fade</option><option>Cut</option></select>
-        <input type="text" value="300 ms" style="background:#161720; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" />
+
+    <!-- Scene Transitions Dock -->
+    <div class="obs-dock-panel" style="width: 120px;">
+      <div class="obs-dock-header">Transitions</div>
+      <div style="padding: 8px; display:flex; flex-direction:column; gap:5px;">
+        <select style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" id="transType">
+          <option value="fade">Fade</option>
+          <option value="cut">Cut</option>
+        </select>
+        <input type="text" value="300 ms" style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" />
       </div>
     </div>
+
     <!-- Controls Dock -->
-    <div class="dock-col ctrl-col">
-      <button class="ctrl-btn" id="btnStreaming" onclick="toggleStreaming()">Start Streaming</button>
-      <button class="ctrl-btn" id="btnRecording" onclick="toggleRecording()">Start Recording</button>
-      <button class="ctrl-btn" id="btnStudioMode" onclick="toggleStudioMode()">Studio Mode</button>
-      <button class="ctrl-btn" onclick="openSettingsModal()">Settings</button>
+    <div class="obs-dock-panel controls-panel">
+      <button class="obs-ctrl-btn" id="btnStream" onclick="toggleStream()">Start Streaming</button>
+      <button class="obs-ctrl-btn" id="btnRecord" onclick="toggleRecord()">Start Recording</button>
+      <button class="obs-ctrl-btn" id="btnStudio" onclick="toggleStudioMode()">Studio Mode</button>
+      <button class="obs-ctrl-btn" onclick="openSettingsModal()">Settings</button>
     </div>
   </div>
 
   <!-- Status Bar -->
-  <div class="statusbar">
-    <span id="statusLive">• LIVE: 00:00:00</span>
-    <span id="statusRec">• REC: 00:00:00</span>
+  <div class="obs-statusbar">
+    <div class="status-badge"><span id="lblLive">● LIVE: 00:00:00</span></div>
+    <div class="status-badge"><span id="lblRec">● REC: 00:00:00</span></div>
     <span>CPU: 0.0%, 60.00 fps</span>
-    <span id="statusKbit">Kbit/s: 0</span>
+    <span id="lblKbit">Kbit/s: 0</span>
   </div>
 </div>
 
-<!-- Input Files Picker -->
-<input type="file" id="pickerGalleryImage" accept="image/*" style="display:none;" onchange="handleImageFile(event)" />
-<input type="file" id="pickerGalleryVideo" accept="video/*" style="display:none;" onchange="handleVideoFile(event)" />
+<!-- Input File Galeri Tersembunyi -->
+<input type="file" id="pickImgFile" accept="image/*" style="display:none;" onchange="onFileImgSelected(event)" />
+<input type="file" id="pickVidFile" accept="video/*" style="display:none;" onchange="onFileVidSelected(event)" />
 
-<!-- Modal Sources -->
-<div id="sourcesModal" class="modal-wrap">
-  <div class="modal-box">
-    <div class="modal-head"><span>Add Source</span><span style="cursor:pointer;" onclick="closeModal('sourcesModal')">✕</span></div>
-    <button class="src-opt" onclick="triggerPicker('image')">🖼️ Image (Buka Galeri Foto)</button>
-    <button class="src-opt" onclick="triggerPicker('video')">🎬 Media Source (Buka Galeri Video)</button>
-    <button class="src-opt" onclick="startCamera('environment')">📹 Video Capture (Kamera Belakang)</button>
-    <button class="src-opt" onclick="startCamera('user')">🤳 Video Capture (Kamera Depan)</button>
-    <button class="src-opt" onclick="addDroneRTSP()">🛸 Drone Stream (RTSP / RTMP)</button>
-    <button class="src-opt" onclick="addTextSource()">📝 Text Overlay (GDI+)</button>
-    <button class="src-opt" onclick="addColorSource()">⬛ Color Source</button>
-  </div>
-</div>
-
-<!-- Modal Settings -->
-<div id="settingsModal" class="modal-wrap">
-  <div class="modal-box">
-    <div class="modal-head"><span>OBS Settings</span><span style="cursor:pointer;" onclick="closeModal('settingsModal')">✕</span></div>
-    <div class="form-row"><label>Platform</label><select id="cfgService"><option>Facebook Live</option><option>Custom RTMP</option><option>YouTube Live</option></select></div>
-    <div class="form-row"><label>Server URL</label><input type="text" id="cfgRtmp" value="rtmps://live-api-s.facebook.com:443/rtmp/" /></div>
-    <div class="form-row"><label>Stream Key</label><input type="password" id="cfgKey" placeholder="Paste Stream Key disini..." /></div>
-    <div style="display:flex; gap:8px;">
-      <div class="form-row" style="flex:1;"><label>Bitrate</label><input type="text" id="cfgBitrate" value="3500k" /></div>
-      <div class="form-row" style="flex:1;"><label>FPS</label><select id="cfgFps"><option>30 FPS</option><option>60 FPS</option></select></div>
+<!-- Modal Sources Lengkap Ala OBS Desktop -->
+<div id="sourceModal" class="obs-modal-mask">
+  <div class="obs-dialog">
+    <div class="obs-dialog-head">
+      <span>Add Source</span>
+      <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
-    <button class="src-opt" style="background:#5865f2; text-align:center; margin-top:8px;" onclick="saveSettings()">Save & Apply</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️ Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video)</button>
+    <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
+    <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
+    <button class="obs-dlg-btn" onclick="addDroneStream()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
+    <button class="obs-dlg-btn" onclick="addTextGDI()">📝 Text (GDI+ Overlay)</button>
+    <button class="obs-dlg-btn" onclick="addColorBg()">⬛ Color Source</button>
+  </div>
+</div>
+
+<!-- Modal Settings OBS -->
+<div id="settingsModal" class="obs-modal-mask">
+  <div class="obs-dialog">
+    <div class="obs-dialog-head">
+      <span>OBS Settings</span>
+      <span style="cursor:pointer;" onclick="closeModal('settingsModal')">✕</span>
+    </div>
+    <div class="obs-field">
+      <label>Platform / Service</label>
+      <select id="cfgService">
+        <option>Facebook Live</option>
+        <option>Custom RTMP</option>
+        <option>YouTube Live</option>
+      </select>
+    </div>
+    <div class="obs-field">
+      <label>Server URL</label>
+      <input type="text" id="cfgServer" value="rtmps://live-api-s.facebook.com:443/rtmp/" />
+    </div>
+    <div class="obs-field">
+      <label>Stream Key</label>
+      <input type="password" id="cfgKey" placeholder="Paste Stream Key FB..." />
+    </div>
+    <div style="display:flex; gap:8px;">
+      <div class="obs-field" style="flex:1;">
+        <label>Video Bitrate</label>
+        <input type="text" id="cfgBitrate" value="3500k" />
+      </div>
+      <div class="obs-field" style="flex:1;">
+        <label>FPS</label>
+        <select id="cfgFps"><option>30 FPS</option><option>60 FPS</option></select>
+      </div>
+    </div>
+    <button class="obs-dlg-btn" style="background:#5865f2; text-align:center; font-weight:bold; margin-top:8px;" onclick="saveSettings()">Apply & OK</button>
   </div>
 </div>
 
 <script>
-  let isStudio = false;
+  /* ============================================================
+     OBS STUDIO CORE PIPELINE & RENDER ENGINE (60 FPS CANVAS LOOP)
+     ============================================================ */
+  const pCanvas = document.getElementById("previewCanvas");
+  const pCtx = pCanvas.getContext("2d");
+  const gCanvas = document.getElementById("programCanvas");
+  const gCtx = gCanvas.getContext("2d");
+
+  let isStudioMode = false;
   let isStreaming = false;
   let isRecording = false;
-  let liveSec = 0, recSec = 0;
+  let liveSeconds = 0, recSeconds = 0;
   let liveTimer = null, recTimer = null;
-  let activeScene = "Scene 1";
-  let activeItemObj = null;
 
-  // Scene Data Structure
-  let scenesData = {
+  // Struktur Scene & Source Graph
+  let currentSceneName = "Scene 1";
+  let scenes = {
     "Scene 1": []
   };
 
+  // Program Scene Buffer (yang sedang tayang Live)
+  let programSceneSources = [];
+
+  let activeSource = null;
+  let micVolume = 0.85;
+
   function closeModal(id) { document.getElementById(id).style.display = "none"; }
-  function openSourcesModal() { document.getElementById("sourcesModal").style.display = "flex"; }
+  function openAddSourceModal() { document.getElementById("sourceModal").style.display = "flex"; }
   function openSettingsModal() {
     document.getElementById("cfgKey").value = localStorage.getItem("obs_key") || "";
-    document.getElementById("cfgRtmp").value = localStorage.getItem("obs_rtmp") || "rtmps://live-api-s.facebook.com:443/rtmp/";
+    document.getElementById("cfgServer").value = localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/";
     document.getElementById("settingsModal").style.display = "flex";
   }
   function saveSettings() {
     localStorage.setItem("obs_key", document.getElementById("cfgKey").value);
-    localStorage.setItem("obs_rtmp", document.getElementById("cfgRtmp").value);
+    localStorage.setItem("obs_server", document.getElementById("cfgServer").value);
     closeModal("settingsModal");
   }
 
-  /* Scenes & Sources UI */
-  function renderScenes() {
-    const list = document.getElementById("scenesList");
-    list.innerHTML = "";
-    Object.keys(scenesData).forEach(name => {
-      const item = document.createElement("div");
-      item.className = "list-item" + (name === activeScene ? " active" : "");
-      item.innerText = name;
-      item.onclick = () => switchScene(name);
-      list.appendChild(item);
-    });
-  }
+  /* ------------------------------------------------------------
+     60 FPS Master Render Loop: Menggambar Scene ke Preview & Program
+     ------------------------------------------------------------ */
+  function renderSceneToCanvas(ctx, sourceList) {
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, 1280, 720);
 
-  function renderSourcesList() {
-    const list = document.getElementById("sourcesList");
-    list.innerHTML = "";
-    const items = scenesData[activeScene] || [];
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "list-item" + (item === activeItemObj ? " active" : "");
-      row.innerText = item.name;
-      row.onclick = () => selectSourceItem(item);
-      list.appendChild(row);
-    });
-  }
+    for (let src of sourceList) {
+      if (!src.visible) continue;
 
-  function switchScene(name) {
-    activeScene = name;
-    renderScenes();
-    const stage = document.getElementById("previewStage");
-    stage.innerHTML = "";
-    activeItemObj = null;
-    hideMediaToolbar();
-
-    if (scenesData[name]) {
-      scenesData[name].forEach(item => {
-        stage.appendChild(item.box);
-        attach8PointTransform(item.box, item);
-      });
-    }
-    renderSourcesList();
-  }
-
-  function promptAddScene() {
-    const name = prompt("Nama Scene Baru:", "Scene " + (Object.keys(scenesData).length + 1));
-    if (name && !scenesData[name]) {
-      scenesData[name] = [];
-      switchScene(name);
-    }
-  }
-
-  function removeActiveScene() {
-    const keys = Object.keys(scenesData);
-    if (keys.length <= 1) return;
-    delete scenesData[activeScene];
-    switchScene(Object.keys(scenesData)[0]);
-  }
-
-  function selectSourceItem(itemObj) {
-    activeItemObj = itemObj;
-    document.querySelectorAll(".obs-bbox").forEach(b => {
-      b.style.borderColor = "transparent";
-      b.querySelectorAll(".obs-handle").forEach(h => h.style.display = "none");
-    });
-
-    if (itemObj && itemObj.box) {
-      itemObj.box.style.borderColor = "#ef4444";
-      itemObj.box.querySelectorAll(".obs-handle").forEach(h => h.style.display = "block");
-
-      // Jika item adalah video galeri, tampilkan media toolbar
-      if (itemObj.type === "video") {
-        showMediaToolbar(itemObj.mediaEl);
-      } else {
-        hideMediaToolbar();
+      if (src.type === "image" || src.type === "video" || src.type === "camera") {
+        if (src.element && (src.element.videoWidth || src.element.naturalWidth)) {
+          ctx.drawImage(src.element, src.x, src.y, src.w, src.h);
+        }
+      } else if (src.type === "color") {
+        ctx.fillStyle = src.color || "#2563eb";
+        ctx.fillRect(src.x, src.y, src.w, src.h);
+      } else if (src.type === "text") {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold " + Math.max(16, src.h * 0.6) + "px sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.fillText(src.text, src.x + 8, src.y + (src.h / 2));
+      } else if (src.type === "drone") {
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(src.x, src.y, src.w, src.h);
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🛸 DRONE STREAM: " + src.name, src.x + (src.w / 2), src.y + (src.h / 2));
+        ctx.textAlign = "left";
       }
-    } else {
-      hideMediaToolbar();
     }
-    renderSourcesList();
   }
 
-  function removeActiveSource() {
-    if (!activeItemObj) return;
-    if (activeItemObj.mediaEl && activeItemObj.mediaEl.pause) activeItemObj.mediaEl.pause();
-    activeItemObj.box.remove();
-    scenesData[activeScene] = scenesData[activeScene].filter(s => s !== activeItemObj);
-    activeItemObj = null;
-    hideMediaToolbar();
-    renderSourcesList();
+  function masterEngineLoop() {
+    // 1. Render Preview Canvas
+    renderSceneToCanvas(pCtx, scenes[currentSceneName] || []);
+
+    // 2. Render Program Canvas
+    if (isStudioMode) {
+      renderSceneToCanvas(gCtx, programSceneSources);
+    } else {
+      // Saat bukan studio mode, program identik dengan preview
+      renderSceneToCanvas(gCtx, scenes[currentSceneName] || []);
+    }
+
+    // 3. Update Bounding Box Posisi jika ada source aktif
+    updateBBoxOverlay();
+
+    requestAnimationFrame(masterEngineLoop);
   }
+  requestAnimationFrame(masterEngineLoop);
 
-  /* 8-Point Bounding Box Transform (Drag & Scale Resize) */
-  function attach8PointTransform(box, itemObj) {
-    box.querySelectorAll(".obs-handle").forEach(h => h.remove());
+  /* ------------------------------------------------------------
+     8-Point OBS Bounding Box & Interactive Overlay (Touch/Mouse)
+     ------------------------------------------------------------ */
+  const overlay = document.getElementById("previewInteractiveOverlay");
+  let bboxEl = null;
 
+  function createBBoxDOM() {
+    bboxEl = document.createElement("div");
+    bboxEl.className = "obs-bbox";
     const handles = ["tl", "tr", "bl", "br", "tm", "bm", "ml", "mr"];
-    handles.forEach(pos => {
-      const h = document.createElement("div");
-      h.className = "obs-handle h-" + pos;
-      h.dataset.pos = pos;
-      box.appendChild(h);
+    handles.forEach(h => {
+      const point = document.createElement("div");
+      point.className = "obs-handle h-" + h;
+      point.dataset.h = h;
+      bboxEl.appendChild(point);
     });
+    overlay.appendChild(bboxEl);
+    setupBBoxEvents(bboxEl);
+  }
+  createBBoxDOM();
 
-    let isDrag = false, isResize = false, handleType = "";
-    let sx, sy, sl, st, sw, sh;
+  function updateBBoxOverlay() {
+    if (!activeSource || !activeSource.visible) {
+      bboxEl.style.display = "none";
+      return;
+    }
+    bboxEl.style.display = "block";
 
-    function down(e) {
+    // Konversi koordinat kanvas 1280x720 ke dimensi layar HP aktual
+    const rect = pCanvas.getBoundingClientRect();
+    const scaleX = rect.width / 1280;
+    const scaleY = rect.height / 720;
+
+    bboxEl.style.left = (pCanvas.offsetLeft + (activeSource.x * scaleX)) + "px";
+    bboxEl.style.top = (pCanvas.offsetTop + (activeSource.y * scaleY)) + "px";
+    bboxEl.style.width = (activeSource.w * scaleX) + "px";
+    bboxEl.style.height = (activeSource.h * scaleY) + "px";
+  }
+
+  function setupBBoxEvents(el) {
+    let mode = null; // 'drag' or handle type
+    let sx, sy, initX, initY, initW, initH;
+
+    function onPointerDown(e) {
       e.stopPropagation();
-      selectSourceItem(itemObj);
       const p = e.touches ? e.touches[0] : e;
-      sx = p.clientX; sy = p.clientY;
-      sl = box.offsetLeft; st = box.offsetTop;
-      sw = box.offsetWidth; sh = box.offsetHeight;
+      sx = p.clientX;
+      sy = p.clientY;
+      initX = activeSource.x;
+      initY = activeSource.y;
+      initW = activeSource.w;
+      initH = activeSource.h;
 
       if (e.target.classList.contains("obs-handle")) {
-        isResize = true;
-        handleType = e.target.dataset.pos;
+        mode = e.target.dataset.h;
       } else {
-        isDrag = true;
+        mode = "drag";
       }
     }
 
-    function move(e) {
-      if (!isDrag && !isResize) return;
+    function onPointerMove(e) {
+      if (!mode || !activeSource) return;
       const p = e.touches ? e.touches[0] : e;
-      const dx = p.clientX - sx;
-      const dy = p.clientY - sy;
+      const rect = pCanvas.getBoundingClientRect();
+      const scaleX = 1280 / rect.width;
+      const scaleY = 720 / rect.height;
 
-      if (isDrag) {
-        box.style.left = Math.max(0, sl + dx) + "px";
-        box.style.top = Math.max(0, st + dy) + "px";
-      } else if (isResize) {
-        if (handleType === "br") {
-          box.style.width = Math.max(40, sw + dx) + "px";
-          box.style.height = Math.max(30, sh + dy) + "px";
-        } else if (handleType === "bl") {
-          box.style.left = (sl + dx) + "px";
-          box.style.width = Math.max(40, sw - dx) + "px";
-          box.style.height = Math.max(30, sh + dy) + "px";
-        } else if (handleType === "tr") {
-          box.style.top = (st + dy) + "px";
-          box.style.width = Math.max(40, sw + dx) + "px";
-          box.style.height = Math.max(30, sh - dy) + "px";
-        } else if (handleType === "tl") {
-          box.style.left = (sl + dx) + "px";
-          box.style.top = (st + dy) + "px";
-          box.style.width = Math.max(40, sw - dx) + "px";
-          box.style.height = Math.max(30, sh - dy) + "px";
-        } else if (handleType === "mr") {
-          box.style.width = Math.max(40, sw + dx) + "px";
-        } else if (handleType === "bm") {
-          box.style.height = Math.max(30, sh + dy) + "px";
+      const dx = (p.clientX - sx) * scaleX;
+      const dy = (p.clientY - sy) * scaleY;
+
+      if (mode === "drag") {
+        activeSource.x = Math.max(0, Math.min(1280 - activeSource.w, initX + dx));
+        activeSource.y = Math.max(0, Math.min(720 - activeSource.h, initY + dy));
+      } else {
+        // Resize logic 8 titik
+        if (mode === "br") {
+          activeSource.w = Math.max(50, initW + dx);
+          activeSource.h = Math.max(30, initH + dy);
+        } else if (mode === "bl") {
+          activeSource.x = initX + dx;
+          activeSource.w = Math.max(50, initW - dx);
+          activeSource.h = Math.max(30, initH + dy);
+        } else if (mode === "tr") {
+          activeSource.y = initY + dy;
+          activeSource.w = Math.max(50, initW + dx);
+          activeSource.h = Math.max(30, initH - dy);
+        } else if (mode === "tl") {
+          activeSource.x = initX + dx;
+          activeSource.y = initY + dy;
+          activeSource.w = Math.max(50, initW - dx);
+          activeSource.h = Math.max(30, initH - dy);
+        } else if (mode === "mr") {
+          activeSource.w = Math.max(50, initW + dx);
+        } else if (mode === "bm") {
+          activeSource.h = Math.max(30, initH + dy);
+        } else if (mode === "tm") {
+          activeSource.y = initY + dy;
+          activeSource.h = Math.max(30, initH - dy);
+        } else if (mode === "ml") {
+          activeSource.x = initX + dx;
+          activeSource.w = Math.max(50, initW - dx);
         }
       }
     }
 
-    function up() { isDrag = false; isResize = false; }
+    function onPointerUp() { mode = null; }
 
-    box.addEventListener("mousedown", down);
-    box.addEventListener("touchstart", down, {passive:false});
-    window.addEventListener("mousemove", move);
-    window.addEventListener("touchmove", move, {passive:false});
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
+    el.addEventListener("mousedown", onPointerDown);
+    el.addEventListener("touchstart", onPointerDown, { passive: false });
+    window.addEventListener("mousemove", onPointerMove);
+    window.addEventListener("touchmove", onPointerMove, { passive: false });
+    window.addEventListener("mouseup", onPointerUp);
+    window.addEventListener("touchend", onPointerUp);
   }
 
-  function createSourceBox(innerMedia, title, type, w, h) {
-    const box = document.createElement("div");
-    box.className = "obs-bbox";
-    box.style.width = (w || 260) + "px";
-    box.style.height = (h || 146) + "px";
-    box.style.left = "20px";
-    box.style.top = "20px";
-
-    innerMedia.style.width = "100%";
-    innerMedia.style.height = "100%";
-    innerMedia.style.objectFit = "cover";
-    innerMedia.style.pointerEvents = "none";
-    box.appendChild(innerMedia);
-
-    document.getElementById("previewStage").appendChild(box);
-
-    const itemObj = { name: title, type: type, box: box, mediaEl: innerMedia };
-    attach8PointTransform(box, itemObj);
-    scenesData[activeScene].push(itemObj);
-
-    selectSourceItem(itemObj);
+  /* ------------------------------------------------------------
+     Scenes & Sources Dock Logic
+     ------------------------------------------------------------ */
+  function renderScenesUI() {
+    const list = document.getElementById("scenesDockList");
+    list.innerHTML = "";
+    Object.keys(scenes).forEach(name => {
+      const row = document.createElement("div");
+      row.className = "obs-item-row" + (name === currentSceneName ? " selected" : "");
+      row.innerText = name;
+      row.onclick = () => switchScene(name);
+      list.appendChild(row);
+    });
   }
 
-  /* Sources Action Handlers */
-  function triggerPicker(type) {
-    closeModal("sourcesModal");
-    if (type === "image") document.getElementById("pickerGalleryImage").click();
-    if (type === "video") document.getElementById("pickerGalleryVideo").click();
+  function renderSourcesUI() {
+    const list = document.getElementById("sourcesDockList");
+    list.innerHTML = "";
+    const arr = scenes[currentSceneName] || [];
+
+    // Render secara reverse (atas adalah layer paling atas)
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const src = arr[i];
+      const row = document.createElement("div");
+      row.className = "obs-item-row" + (src === activeSource ? " selected" : "");
+      row.innerHTML = `<span>${src.name}</span><span style="font-size:10px;">${src.visible ? '👁️' : '🚫'}</span>`;
+      row.onclick = () => selectSource(src);
+      list.appendChild(row);
+    }
   }
 
-  function handleImageFile(e) {
+  function selectSource(src) {
+    activeSource = src;
+    renderSourcesUI();
+    if (src && src.type === "video") {
+      showMediaToolbar(src.element);
+    } else {
+      hideMediaToolbar();
+    }
+  }
+
+  function switchScene(name) {
+    currentSceneName = name;
+    activeSource = null;
+    hideMediaToolbar();
+    renderScenesUI();
+    renderSourcesUI();
+  }
+
+  function addScenePrompt() {
+    const name = prompt("Scene Name:", "Scene " + (Object.keys(scenes).length + 1));
+    if (name && !scenes[name]) {
+      scenes[name] = [];
+      switchScene(name);
+    }
+  }
+
+  function removeScene() {
+    if (Object.keys(scenes).length <= 1) return;
+    delete scenes[currentSceneName];
+    switchScene(Object.keys(scenes)[0]);
+  }
+
+  function renameScenePrompt() {
+    const newName = prompt("Rename Scene:", currentSceneName);
+    if (newName && newName !== currentSceneName && !scenes[newName]) {
+      scenes[newName] = scenes[currentSceneName];
+      delete scenes[currentSceneName];
+      switchScene(newName);
+    }
+  }
+
+  function removeActiveSource() {
+    if (!activeSource) return;
+    if (activeSource.element && activeSource.element.pause) activeSource.element.pause();
+    scenes[currentSceneName] = scenes[currentSceneName].filter(s => s !== activeSource);
+    activeSource = null;
+    hideMediaToolbar();
+    renderSourcesUI();
+  }
+
+  function moveLayerUp() {
+    if (!activeSource) return;
+    const arr = scenes[currentSceneName];
+    const idx = arr.indexOf(activeSource);
+    if (idx < arr.length - 1) {
+      arr[idx] = arr[idx + 1];
+      arr[idx + 1] = activeSource;
+      renderSourcesUI();
+    }
+  }
+
+  function moveLayerDown() {
+    if (!activeSource) return;
+    const arr = scenes[currentSceneName];
+    const idx = arr.indexOf(activeSource);
+    if (idx > 0) {
+      arr[idx] = arr[idx - 1];
+      arr[idx - 1] = activeSource;
+      renderSourcesUI();
+    }
+  }
+
+  /* ------------------------------------------------------------
+     Source Add Handlers (Galeri, Kamera, Drone, Teks)
+     ------------------------------------------------------------ */
+  function triggerPick(type) {
+    closeModal("sourceModal");
+    if (type === "image") document.getElementById("pickImgFile").click();
+    if (type === "video") document.getElementById("pickVidFile").click();
+  }
+
+  function onFileImgSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const img = document.createElement("img");
+    const img = new Image();
     img.src = URL.createObjectURL(file);
-    createSourceBox(img, "🖼️ " + file.name, "image", 220, 160);
+    img.onload = () => {
+      const srcObj = {
+        name: "🖼️ " + file.name,
+        type: "image",
+        element: img,
+        x: 100, y: 80, w: 480, h: 320,
+        visible: true
+      };
+      scenes[currentSceneName].push(srcObj);
+      selectSource(srcObj);
+    };
   }
 
-  function handleVideoFile(e) {
+  function onFileVidSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
     const vid = document.createElement("video");
@@ -450,240 +723,263 @@
     vid.playsInline = true;
     vid.play();
 
-    createSourceBox(vid, "🎬 " + file.name, "video", 260, 146);
+    const srcObj = {
+      name: "🎬 " + file.name,
+      type: "video",
+      element: vid,
+      x: 80, y: 60, w: 640, h: 360,
+      visible: true
+    };
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
   }
 
-  function startCamera(facing) {
-    closeModal("sourcesModal");
+  function initCamDevice(facing) {
+    closeModal("sourceModal");
     navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
       .then(stream => {
         const vid = document.createElement("video");
-        vid.autoplay = true; vid.muted = true; vid.playsInline = true;
+        vid.autoplay = true;
+        vid.muted = true;
+        vid.playsInline = true;
         vid.srcObject = stream;
         vid.play();
-        createSourceBox(vid, facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera", "camera", 260, 146);
+
+        const srcObj = {
+          name: facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera",
+          type: "camera",
+          element: vid,
+          x: 100, y: 80, w: 640, h: 360,
+          visible: true
+        };
+        scenes[currentSceneName].push(srcObj);
+        selectSource(srcObj);
       })
       .catch(err => alert("Kamera error: " + err.message));
   }
 
-  function addDroneRTSP() {
-    closeModal("sourcesModal");
-    const u = prompt("RTSP Drone Stream URL:", "rtsp://192.168.1.1:8554/live");
+  function addDroneStream() {
+    closeModal("sourceModal");
+    const u = prompt("RTSP Drone URL:", "rtsp://192.168.1.1:8554/live");
     if (!u) return;
-    const box = document.createElement("div");
-    box.style.background = "#1f2937"; box.style.color = "#60a5fa"; box.style.display = "flex";
-    box.style.alignItems = "center"; box.style.justifyContent = "center"; box.style.fontSize = "12px";
-    box.innerText = "🛸 DRONE LIVE STREAM";
-    createSourceBox(box, "🛸 " + u, "drone", 260, 146);
+    const srcObj = {
+      name: "🛸 " + u,
+      type: "drone",
+      x: 100, y: 80, w: 640, h: 360,
+      visible: true
+    };
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
   }
 
-  function addTextSource() {
-    closeModal("sourcesModal");
-    const txt = prompt("Overlay Text:", "LIVE STREAM");
-    if (!txt) return;
-    const d = document.createElement("div");
-    d.style.color = "#fff"; d.style.fontWeight = "bold"; d.style.fontSize = "18px";
-    d.style.textShadow = "2px 2px 4px #000"; d.innerText = txt;
-    createSourceBox(d, "📝 " + txt, "text", 200, 40);
+  function addTextGDI() {
+    closeModal("sourceModal");
+    const t = prompt("Overlay Text:", "LIVE DRONE STREAM");
+    if (!t) return;
+    const srcObj = {
+      name: "📝 " + t,
+      type: "text",
+      text: t,
+      x: 120, y: 550, w: 500, h: 60,
+      visible: true
+    };
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
   }
 
-  function addColorSource() {
-    closeModal("sourcesModal");
-    const d = document.createElement("div");
-    d.style.background = "#2563eb";
-    createSourceBox(d, "⬛ Color Source", "color", 180, 100);
+  function addColorBg() {
+    closeModal("sourceModal");
+    const srcObj = {
+      name: "⬛ Color Source",
+      type: "color",
+      color: "#2563eb",
+      x: 50, y: 50, w: 400, h: 250,
+      visible: true
+    };
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
   }
 
-  /* Media Toolbar Controls */
-  let activeVideoEl = null;
+  /* ------------------------------------------------------------
+     Media Playback Controls Bar
+     ------------------------------------------------------------ */
+  let currMediaVid = null;
 
-  function showMediaToolbar(videoEl) {
-    activeVideoEl = videoEl;
-    const bar = document.getElementById("mediaToolbar");
-    bar.style.display = "flex";
-
-    videoEl.ontimeupdate = () => {
-      if (!videoEl.duration) return;
-      const prog = (videoEl.currentTime / videoEl.duration) * 100;
-      document.getElementById("mediaProgress").value = prog;
-      document.getElementById("mediaTimeLabel").innerText = fmtFltTime(videoEl.currentTime) + " / " + fmtFltTime(videoEl.duration);
+  function showMediaToolbar(vid) {
+    currMediaVid = vid;
+    document.getElementById("mediaToolbar").style.display = "flex";
+    vid.ontimeupdate = () => {
+      if (!vid.duration) return;
+      const pct = (vid.currentTime / vid.duration) * 100;
+      document.getElementById("mSeekbar").value = pct;
+      document.getElementById("mTimeLabel").innerText = formatTimeSec(vid.currentTime) + " / " + formatTimeSec(vid.duration);
     };
   }
 
   function hideMediaToolbar() {
     document.getElementById("mediaToolbar").style.display = "none";
-    activeVideoEl = null;
+    currMediaVid = null;
   }
 
-  function toggleMediaPlay() {
-    if (!activeVideoEl) return;
-    const btn = document.getElementById("mediaPlayBtn");
-    if (activeVideoEl.paused) {
-      activeVideoEl.play();
+  function togglePlayMedia() {
+    if (!currMediaVid) return;
+    const btn = document.getElementById("mPlayBtn");
+    if (currMediaVid.paused) {
+      currMediaVid.play();
       btn.innerText = "⏸";
     } else {
-      activeVideoEl.pause();
+      currMediaVid.pause();
       btn.innerText = "▶";
     }
   }
 
-  function stopActiveMedia() {
-    if (!activeVideoEl) return;
-    activeVideoEl.pause();
-    activeVideoEl.currentTime = 0;
-    document.getElementById("mediaPlayBtn").innerText = "▶";
+  function stopMedia() {
+    if (!currMediaVid) return;
+    currMediaVid.pause();
+    currMediaVid.currentTime = 0;
+    document.getElementById("mPlayBtn").innerText = "▶";
   }
 
-  function seekActiveMedia(val) {
-    if (!activeVideoEl || !activeVideoEl.duration) return;
-    activeVideoEl.currentTime = (val / 100) * activeVideoEl.duration;
+  function restartMedia() {
+    if (!currMediaVid) return;
+    currMediaVid.currentTime = 0;
+    currMediaVid.play();
+    document.getElementById("mPlayBtn").innerText = "⏸";
   }
 
-  function fmtFltTime(sec) {
+  function onSeekMedia(val) {
+    if (!currMediaVid || !currMediaVid.duration) return;
+    currMediaVid.currentTime = (val / 100) * currMediaVid.duration;
+  }
+
+  function formatTimeSec(sec) {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    return "00:" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
-  /* Studio Mode Dual Screen & Transition Fix */
+  /* ------------------------------------------------------------
+     Studio Mode Dual Monitors & Smooth Cut/Fade Transition
+     ------------------------------------------------------------ */
   function toggleStudioMode() {
-    isStudio = !isStudio;
+    isStudioMode = !isStudioMode;
+    const progBox = document.getElementById("programMonitor");
     const trans = document.getElementById("transBar");
-    const program = document.getElementById("programMonitorBox");
-    const btn = document.getElementById("btnStudioMode");
+    const btn = document.getElementById("btnStudio");
 
-    if (isStudio) {
+    if (isStudioMode) {
+      progBox.style.display = "flex";
       trans.style.display = "flex";
-      program.style.display = "flex";
       btn.style.background = "#5865f2";
       btn.style.color = "#fff";
+      // Sinkronkan program awal
       execTransition('cut');
     } else {
+      progBox.style.display = "none";
       trans.style.display = "none";
-      program.style.display = "none";
       btn.style.background = "";
       btn.style.color = "";
     }
   }
 
   function execTransition(type) {
-    const previewStage = document.getElementById("previewStage");
-    const programStage = document.getElementById("programStage");
-    if (!previewStage || !programStage) return;
+    const currentList = scenes[currentSceneName] || [];
+    // Deep copy state source ke Program tanpa merusak referensi media asli
+    programSceneSources = currentList.map(item => ({ ...item }));
 
     if (type === "fade") {
-      programStage.style.transition = "opacity 0.2s";
-      programStage.style.opacity = "0.2";
-      setTimeout(() => {
-        syncProgramStage(previewStage, programStage);
-        programStage.style.opacity = "1";
-      }, 150);
-    } else {
-      syncProgramStage(previewStage, programStage);
+      gCanvas.style.transition = "opacity 0.2s ease-out";
+      gCanvas.style.opacity = "0.2";
+      setTimeout(() => { gCanvas.style.opacity = "1"; }, 100);
     }
   }
 
-  // Clone elemen Preview ke Program dan pastikan stream/video terus bergerak (tidak freeze)
-  function syncProgramStage(src, dest) {
-    dest.innerHTML = "";
+  /* ------------------------------------------------------------
+     Streaming & Recording Logic
+     ------------------------------------------------------------ */
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
-    const items = src.querySelectorAll(".obs-bbox");
-    items.forEach(item => {
-      const clone = item.cloneNode(true);
-      clone.style.border = "none";
-      clone.style.boxShadow = "none";
-      clone.querySelectorAll(".obs-handle").forEach(h => h.remove());
-
-      // Sambungkan kembali stream video / camera
-      const originalVideo = item.querySelector("video");
-      const clonedVideo = clone.querySelector("video");
-
-      if (originalVideo && clonedVideo) {
-        if (originalVideo.srcObject) {
-          clonedVideo.srcObject = originalVideo.srcObject;
-        } else if (originalVideo.src) {
-          clonedVideo.src = originalVideo.src;
-          clonedVideo.currentTime = originalVideo.currentTime;
-        }
-        clonedVideo.autoplay = true;
-        clonedVideo.muted = true;
-        clonedVideo.playsInline = true;
-        clonedVideo.play().catch(() => {});
-      }
-
-      dest.appendChild(clone);
-    });
-  }
-
-  /* Streaming & Recording Logic */
-  function pad(n) { return String(n).padStart(2, "0"); }
-  function fmtTime(s) { return pad(Math.floor(s/3600)) + ":" + pad(Math.floor((s%3600)/60)) + ":" + pad(s%60); }
-
-  function toggleStreaming() {
-    const btn = document.getElementById("btnStreaming");
+  function toggleStream() {
+    const btn = document.getElementById("btnStream");
     if (!isStreaming) {
       isStreaming = true;
       btn.innerText = "Stop Streaming";
-      btn.classList.add("live-active");
-      liveSec = 0;
+      btn.classList.add("obs-live-on");
+      liveSeconds = 0;
       liveTimer = setInterval(() => {
-        liveSec++;
-        document.getElementById("statusLive").innerText = "• LIVE: " + fmtTime(liveSec);
-        document.getElementById("statusKbit").innerText = "Kbit/s: " + (3200 + Math.floor(Math.random()*400));
+        liveSeconds++;
+        document.getElementById("lblLive").innerText = "● LIVE: " + fmtTimer(liveSeconds);
+        document.getElementById("lblKbit").innerText = "Kbit/s: " + (3300 + Math.floor(Math.random()*300));
       }, 1000);
     } else {
       isStreaming = false;
       btn.innerText = "Start Streaming";
-      btn.classList.remove("live-active");
+      btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
     }
   }
 
-  function toggleRecording() {
-    const btn = document.getElementById("btnRecording");
+  function toggleRecord() {
+    const btn = document.getElementById("btnRecord");
     if (!isRecording) {
       isRecording = true;
       btn.innerText = "Stop Recording";
-      btn.classList.add("rec-active");
-      recSec = 0;
+      btn.classList.add("obs-rec-on");
+      recSeconds = 0;
       recTimer = setInterval(() => {
-        recSec++;
-        document.getElementById("statusRec").innerText = "• REC: " + fmtTime(recSec);
+        recSeconds++;
+        document.getElementById("lblRec").innerText = "● REC: " + fmtTimer(recSeconds);
       }, 1000);
     } else {
       isRecording = false;
       btn.innerText = "Start Recording";
-      btn.classList.remove("rec-active");
+      btn.classList.remove("obs-rec-on");
       clearInterval(recTimer);
     }
   }
 
-  /* Audio Meter dB */
-  function initAudio() {
+  /* ------------------------------------------------------------
+     Audio Meter & VU Bar Realtime
+     ------------------------------------------------------------ */
+  function setMicVolume(v) {
+    micVolume = v / 100;
+  }
+
+  function initAudioMeter() {
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 32;
-      ctx.createMediaStreamSource(stream).connect(analyser);
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
       const data = new Uint8Array(analyser.frequencyBinCount);
-      function draw() {
-        requestAnimationFrame(draw);
+      const vu = document.getElementById("vuMeterBar");
+      const dbLabel = document.getElementById("dbNumLabel");
+
+      function updateMeter() {
+        requestAnimationFrame(updateMeter);
         analyser.getByteFrequencyData(data);
         let sum = 0;
         for (let i = 0; i < data.length; i++) sum += data[i];
-        let avg = sum / data.length;
-        let db = avg > 0 ? (Math.round((avg / 255) * 45) - 45) : -60;
-        const disp = document.getElementById("dbDisplay");
-        disp.innerText = db + " dB";
-        disp.style.color = db > -6 ? "#ed4245" : (db > -18 ? "#faa61a" : "#3ba55c");
+        let avg = (sum / data.length) * micVolume;
+
+        let pct = Math.min(100, Math.round((avg / 128) * 100));
+        vu.style.width = pct + "%";
+
+        let db = avg > 0 ? (Math.round((avg / 255) * 50) - 50) : -60;
+        dbLabel.innerText = db + " dB";
+        dbLabel.style.color = db > -5 ? "#ef4444" : (db > -18 ? "#eab308" : "#22c55e");
       }
-      draw();
-    }).catch(e => console.log("Audio info:", e.message));
+      updateMeter();
+    }).catch(e => console.log("Audio meter notice:", e.message));
   }
 
   window.addEventListener("DOMContentLoaded", () => {
-    renderScenes();
-    setTimeout(initAudio, 1000);
+    renderScenesUI();
+    renderSourcesUI();
+    setTimeout(initAudioMeter, 1000);
   });
 </script>
 </body>
