@@ -26,10 +26,14 @@ jobs:
       - name: Build Debug APK
         run: |
           gradle wrapper
-          ./gradlew :app:assembleDebug --no-daemon
+          ./gradlew assembleDebug --stacktrace
+          mkdir -p output_apk
+          find . -name "*.apk" -exec cp {} output_apk/ \;
+          ls -lh output_apk/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: WebOBS-APK
-          path: app/build/outputs/apk/**/*.apk
+          path: output_apk/*.apk
+          if-no-files-found: error
