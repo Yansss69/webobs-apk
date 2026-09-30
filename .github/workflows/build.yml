@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.3-FB-PASS.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.4-REPAIRED.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.3-fb-pass-${{ github.run_number }}"
-        name: "WebOBS Studio v4.3 FB PASS (Build #${{ github.run_number }})"
-        body: "Fix Facebook Live: Native MediaMTX RTMPS Forwarding, Silent Audio Track Fallback (No-FFmpeg Dependency)."
-        files: package_output/WebOBS-v4.3-FB-PASS.apk
+        tag_name: "v4.4-repaired-${{ github.run_number }}"
+        name: "WebOBS Studio v4.4 REPAIRED (Build #${{ github.run_number }})"
+        body: "Clean Restore: Memulihkan respon klik tombol, overlay click-through, 16:9 aspect ratio, dan Facebook Live pipeline."
+        files: package_output/WebOBS-v4.4-REPAIRED.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

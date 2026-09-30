@@ -22,7 +22,7 @@
     .obs-menu-item { color: #b9bbbe; cursor: pointer; }
     .obs-menu-item:hover { color: #fff; }
 
-    /* Area Viewport Monitor */
+    /* Viewport Area */
     .obs-stage-wrap {
       flex: 1; display: flex; flex-direction: column; background: #0c0d12;
       padding: 4px; gap: 4px; overflow: hidden; position: relative;
@@ -56,7 +56,7 @@
       width: 100%; height: 100%; display: block; object-fit: contain; background: #000;
     }
 
-    /* OBS 8-Point Bounding Box Merah Presisi */
+    /* OBS 8-Point Bounding Box Merah */
     .obs-bbox {
       position: absolute; border: 2px solid #ef4444; touch-action: none;
       box-sizing: border-box; pointer-events: all; z-index: 10;
@@ -200,7 +200,7 @@
   <!-- Viewport Area -->
   <div class="obs-stage-wrap">
     <div class="obs-monitors-container" id="monitorsContainer">
-      <!-- Preview Monitor (16:9 Proporsional Asli) -->
+      <!-- Preview Monitor -->
       <div class="obs-monitor preview-border" id="previewMonitor">
         <div class="obs-monitor-title title-preview" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
         <div class="obs-canvas-box" id="previewStageBox">
@@ -387,6 +387,7 @@
   let programSceneSources = [];
   let activeSource = null;
   let micVolume = 0.85;
+  let whipPC = null;
 
   function closeModal(id) { document.getElementById(id).style.display = "none"; }
   function openAddSourceModal() { document.getElementById("sourceModal").style.display = "flex"; }
@@ -450,7 +451,7 @@
   requestAnimationFrame(masterEngineLoop);
 
   /* ------------------------------------------------------------
-     8-Point Bounding Box Presisi (Rasio Nyata Kanvas 1280x720)
+     8-Point Bounding Box Presisi
      ------------------------------------------------------------ */
   const overlay = document.getElementById("previewInteractiveOverlay");
   let bboxEl = null;
@@ -477,7 +478,6 @@
     }
     bboxEl.style.display = "block";
 
-    // Hitung faktor skala kanvas secara akurat sesuai ukuran layar aktual
     const cw = pCanvas.clientWidth;
     const ch = pCanvas.clientHeight;
     const scaleX = cw / 1280;
@@ -570,6 +570,7 @@
      ------------------------------------------------------------ */
   function renderScenesUI() {
     const list = document.getElementById("scenesDockList");
+    if (!list) return;
     list.innerHTML = "";
     Object.keys(scenes).forEach(name => {
       const row = document.createElement("div");
@@ -582,6 +583,7 @@
 
   function renderSourcesUI() {
     const list = document.getElementById("sourcesDockList");
+    if (!list) return;
     list.innerHTML = "";
     const arr = scenes[currentSceneName] || [];
 
@@ -682,7 +684,6 @@
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = () => {
-      // Skala awal gambar otomatis proporsional di tengah kanvas
       const w = 640;
       const h = Math.round((img.naturalHeight / img.naturalWidth) * 640) || 360;
       const srcObj = {
@@ -852,7 +853,7 @@
   }
 
   /* ------------------------------------------------------------
-     Studio Mode Dual Monitor (Proporsional 16:9 Otomatis)
+     Studio Mode Dual Monitor
      ------------------------------------------------------------ */
   function toggleStudioMode() {
     isStudioMode = !isStudioMode;
@@ -886,25 +887,14 @@
   }
 
   /* ------------------------------------------------------------
-     Streaming & Recording Logic
+     Streaming Facebook Live Pipeline (Native MediaMTX WHIP)
      ------------------------------------------------------------ */
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
-
-  
-  
-  }
-
-  
-  let whipPC = null;
-
-  // Buat audio track kosong/hening jika mic belum aktif (mencegah penolakan Facebook)
   function createSilentAudioTrack() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const dst = ctx.createMediaStreamDestination();
     const gain = ctx.createGain();
-    gain.gain.value = 0.001; // nyaris hening tapi sinyal audio ada
+    gain.gain.value = 0.001;
     osc.connect(gain);
     gain.connect(dst);
     osc.start();
@@ -916,7 +906,6 @@
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
 
-      // Tambahkan audio mic nyata, atau fallback audio hening
       if (window.micAudioStream && window.micAudioStream.getAudioTracks().length > 0) {
         stream.addTrack(window.micAudioStream.getAudioTracks()[0]);
       } else {
@@ -929,13 +918,9 @@
 
       stream.getTracks().forEach(track => whipPC.addTrack(track, stream));
 
-      const offer = await whipPC.createOffer({
-        offerToReceiveAudio: false,
-        offerToReceiveVideo: false
-      });
+      const offer = await whipPC.createOffer();
       await whipPC.setLocalDescription(offer);
 
-      // Kirim SDP Offer ke MediaMTX WHIP lokal
       const resp = await fetch("http://127.0.0.1:8889/live/whip", {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
@@ -948,10 +933,10 @@
           type: "answer",
           sdp: answerSdp
         }));
-        console.log("WHIP: Berhasil terhubung ke MediaMTX router!");
+        console.log("WHIP: Connected to MediaMTX!");
       }
     } catch (e) {
-      console.log("WHIP transmit notice:", e);
+      console.log("WHIP connect notice:", e);
     }
   }
 
@@ -961,6 +946,9 @@
       whipPC = null;
     }
   }
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
   function toggleStream() {
     const btn = document.getElementById("btnStream");
@@ -1019,7 +1007,7 @@
   }
 
   /* ------------------------------------------------------------
-     Audio Meter & Realtime VU Bar
+     Audio Meter & VU Bar Realtime
      ------------------------------------------------------------ */
   function setMicVolume(v) { micVolume = v / 100; }
 
