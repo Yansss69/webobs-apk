@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.4-REPAIRED.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.5-DIRECT-FB.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.4-repaired-${{ github.run_number }}"
-        name: "WebOBS Studio v4.4 REPAIRED (Build #${{ github.run_number }})"
-        body: "Clean Restore: Memulihkan respon klik tombol, overlay click-through, 16:9 aspect ratio, dan Facebook Live pipeline."
-        files: package_output/WebOBS-v4.4-REPAIRED.apk
+        tag_name: "v4.5-direct-fb-${{ github.run_number }}"
+        name: "WebOBS Studio v4.5 DIRECT FB (Build #${{ github.run_number }})"
+        body: "Fix FB Live Network: CleartextTraffic enabled, Full RTMPS Path Forwarding without hash fragment, WebRTC WHIP unblocked."
+        files: package_output/WebOBS-v4.5-DIRECT-FB.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -56,6 +56,8 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setDatabaseEnabled(true);
+        // Izinkan WebView memanggil localhost tanpa proteksi CORS/Mixed Content
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
@@ -79,13 +81,12 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Bridge JS ke Android Native untuk menghubungkan RTMPS Facebook Live
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
                     startNativeMediaMtxForwarder(rtmpUrl, streamKey);
-                    Toast.makeText(MainActivity.this, "Menghubungkan ke Facebook Live via RTMPS...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Connecting to Facebook Live (RTMPS)...", Toast.LENGTH_SHORT).show();
                 });
             }
 
@@ -93,14 +94,12 @@ public class MainActivity extends Activity {
             public void stopStream() {
                 runOnUiThread(() -> {
                     stopMediaMtx();
-                    Toast.makeText(MainActivity.this, "Streaming Dihentikan", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Stream Stopped", Toast.LENGTH_SHORT).show();
                 });
             }
         }, "AndroidBridge");
 
-        // Start MediaMTX awal untuk WebRTC listener
         startNativeMediaMtxForwarder("", "");
-
         webView.loadUrl("file:///android_asset/index.html");
     }
 
@@ -115,27 +114,27 @@ public class MainActivity extends Activity {
                     binFile.setExecutable(true, false);
                 }
 
-                // Susun target forwarding RTMPS resmi MediaMTX
-                String forwardBlock = "";
+                String forwardDirect = "";
                 if (streamKey != null && !streamKey.trim().isEmpty()) {
-                    String cleanUrl = rtmpUrl.trim();
-                    if (cleanUrl.endsWith("/")) cleanUrl = cleanUrl.substring(0, cleanUrl.length() - 1);
-                    if (!cleanUrl.startsWith("rtmp")) cleanUrl = "rtmps://live-api-s.facebook.com:443/rtmp";
-                    
-                    forwardBlock = 
+                    String base = rtmpUrl.trim();
+                    if (!base.endsWith("/")) base += "/";
+                    String fullRtmps = base + streamKey.trim();
+
+                    // Format forward resmi MediaMTX untuk target RTMP/RTMPS tunggal
+                    forwardDirect = 
                         "    forward:\n" +
-                        "      - dest: " + cleanUrl + "#" + streamKey.trim() + "\n";
+                        "      - dest: " + fullRtmps + "\n";
                 }
 
                 String ymlContent = 
                     "api: yes\n" +
-                    "apiAddress: :9997\n" +
-                    "webrtcAddress: :8889\n" +
+                    "apiAddress: 127.0.0.1:9997\n" +
+                    "webrtcAddress: 127.0.0.1:8889\n" +
                     "webrtcAllowStreamCreation: yes\n" +
                     "paths:\n" +
                     "  live:\n" +
                     "    source: publisher\n" +
-                    forwardBlock;
+                    forwardDirect;
 
                 File confFile = new File(getFilesDir(), "mediamtx.yml");
                 try (FileOutputStream fos = new FileOutputStream(confFile)) {
