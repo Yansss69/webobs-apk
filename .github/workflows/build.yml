@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.2-LIVE-FB.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.3-FB-PASS.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.2-live-fb-${{ github.run_number }}"
-        name: "WebOBS Studio v4.2 LIVE FB (Build #${{ github.run_number }})"
-        body: "Real RTMP Live Transmitter: Menghubungkan kanvas WebOBS langsung ke Facebook Live RTMPS secara nyata."
-        files: package_output/WebOBS-v4.2-LIVE-FB.apk
+        tag_name: "v4.3-fb-pass-${{ github.run_number }}"
+        name: "WebOBS Studio v4.3 FB PASS (Build #${{ github.run_number }})"
+        body: "Fix Facebook Live: Native MediaMTX RTMPS Forwarding, Silent Audio Track Fallback (No-FFmpeg Dependency)."
+        files: package_output/WebOBS-v4.3-FB-PASS.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

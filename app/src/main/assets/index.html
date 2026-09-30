@@ -892,46 +892,73 @@
   function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
   
-  let whipPeerConnection = null;
+  
+  }
+
+  
+  let whipPC = null;
+
+  // Buat audio track kosong/hening jika mic belum aktif (mencegah penolakan Facebook)
+  function createSilentAudioTrack() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const dst = ctx.createMediaStreamDestination();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.001; // nyaris hening tapi sinyal audio ada
+    osc.connect(gain);
+    gain.connect(dst);
+    osc.start();
+    return dst.stream.getAudioTracks()[0];
+  }
 
   async function pushCanvasViaWhip() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
 
-      if (window.micAudioStream) {
-        window.micAudioStream.getAudioTracks().forEach(track => stream.addTrack(track));
+      // Tambahkan audio mic nyata, atau fallback audio hening
+      if (window.micAudioStream && window.micAudioStream.getAudioTracks().length > 0) {
+        stream.addTrack(window.micAudioStream.getAudioTracks()[0]);
+      } else {
+        stream.addTrack(createSilentAudioTrack());
       }
 
-      whipPeerConnection = new RTCPeerConnection({
+      whipPC = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
       });
 
-      stream.getTracks().forEach(track => whipPeerConnection.addTrack(track, stream));
+      stream.getTracks().forEach(track => whipPC.addTrack(track, stream));
 
-      const offer = await whipPeerConnection.createOffer();
-      await whipPeerConnection.setLocalDescription(offer);
+      const offer = await whipPC.createOffer({
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false
+      });
+      await whipPC.setLocalDescription(offer);
 
-      // Kirim SDP Offer ke MediaMTX WHEP/WHIP lokal
-      fetch("http://127.0.0.1:8889/live/whip", {
+      // Kirim SDP Offer ke MediaMTX WHIP lokal
+      const resp = await fetch("http://127.0.0.1:8889/live/whip", {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: offer.sdp
-      }).then(res => res.text()).then(answerSdp => {
-        whipPeerConnection.setRemoteDescription(new RTCSessionDescription({
+      });
+
+      if (resp.ok) {
+        const answerSdp = await resp.text();
+        await whipPC.setRemoteDescription(new RTCSessionDescription({
           type: "answer",
           sdp: answerSdp
         }));
-      }).catch(err => console.log("WHIP connect notice:", err));
+        console.log("WHIP: Berhasil terhubung ke MediaMTX router!");
+      }
     } catch (e) {
-      console.error("WHIP Error:", e);
+      console.log("WHIP transmit notice:", e);
     }
   }
 
   function stopWhipStream() {
-    if (whipPeerConnection) {
-      whipPeerConnection.close();
-      whipPeerConnection = null;
+    if (whipPC) {
+      whipPC.close();
+      whipPC = null;
     }
   }
 

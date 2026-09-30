@@ -79,32 +79,35 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Bridge JS ke Android Native untuk kontrol koneksi RTMP Facebook
+        // Bridge JS ke Android Native untuk menghubungkan RTMPS Facebook Live
         webView.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
-                    startMediaMTXRelay(rtmpUrl, streamKey);
-                    Toast.makeText(MainActivity.this, "Mengirim sinyal ke Facebook Live...", Toast.LENGTH_LONG).show();
+                    startNativeMediaMtxForwarder(rtmpUrl, streamKey);
+                    Toast.makeText(MainActivity.this, "Menghubungkan ke Facebook Live via RTMPS...", Toast.LENGTH_SHORT).show();
                 });
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
-                    stopMediaMTXProcess();
-                    Toast.makeText(MainActivity.this, "Live Facebook Dihentikan", Toast.LENGTH_SHORT).show();
+                    stopMediaMtx();
+                    Toast.makeText(MainActivity.this, "Streaming Dihentikan", Toast.LENGTH_SHORT).show();
                 });
             }
         }, "AndroidBridge");
 
+        // Start MediaMTX awal untuk WebRTC listener
+        startNativeMediaMtxForwarder("", "");
+
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private void startMediaMTXRelay(String rtmpUrl, String streamKey) {
+    private void startNativeMediaMtxForwarder(String rtmpUrl, String streamKey) {
         new Thread(() -> {
             try {
-                stopMediaMTXProcess();
+                stopMediaMtx();
 
                 File binFile = new File(getFilesDir(), "mediamtx");
                 if (!binFile.exists() || binFile.length() == 0) {
@@ -112,24 +115,31 @@ public class MainActivity extends Activity {
                     binFile.setExecutable(true, false);
                 }
 
-                // Format RTMPS Facebook Live lengkap
-                String fullTarget = rtmpUrl.trim();
-                if (!fullTarget.endsWith("/")) fullTarget += "/";
-                fullTarget += streamKey.trim();
+                // Susun target forwarding RTMPS resmi MediaMTX
+                String forwardBlock = "";
+                if (streamKey != null && !streamKey.trim().isEmpty()) {
+                    String cleanUrl = rtmpUrl.trim();
+                    if (cleanUrl.endsWith("/")) cleanUrl = cleanUrl.substring(0, cleanUrl.length() - 1);
+                    if (!cleanUrl.startsWith("rtmp")) cleanUrl = "rtmps://live-api-s.facebook.com:443/rtmp";
+                    
+                    forwardBlock = 
+                        "    forward:\n" +
+                        "      - dest: " + cleanUrl + "#" + streamKey.trim() + "\n";
+                }
 
-                // Buat konfigurasi mediamtx on-the-fly dengan runOnInit / push RTMP aktif
-                String confContent = 
+                String ymlContent = 
                     "api: yes\n" +
                     "apiAddress: :9997\n" +
                     "webrtcAddress: :8889\n" +
+                    "webrtcAllowStreamCreation: yes\n" +
                     "paths:\n" +
                     "  live:\n" +
                     "    source: publisher\n" +
-                    "    runOnPublish: ffmpeg -i rtmp://localhost:1935/live -c:v copy -c:a aac -f flv \"" + fullTarget + "\"\n";
+                    forwardBlock;
 
                 File confFile = new File(getFilesDir(), "mediamtx.yml");
                 try (FileOutputStream fos = new FileOutputStream(confFile)) {
-                    fos.write(confContent.getBytes(StandardCharsets.UTF_8));
+                    fos.write(ymlContent.getBytes(StandardCharsets.UTF_8));
                 }
 
                 ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
@@ -141,7 +151,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void stopMediaMTXProcess() {
+    private void stopMediaMtx() {
         if (mediaMtxProcess != null) {
             mediaMtxProcess.destroy();
             mediaMtxProcess = null;
@@ -215,6 +225,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopMediaMTXProcess();
+        stopMediaMtx();
     }
 }
