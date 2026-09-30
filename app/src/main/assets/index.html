@@ -5,39 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OBS Studio Native Mobile</title>
   <style>
-    /* OBS Yami Theme Global */
     * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
     html, body {
       width: 100vw; height: 100vh; overflow: hidden;
-      background: #181920; color: #dcddde;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #14151b; color: #dcddde;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 11px; user-select: none;
     }
     #obs-root { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
 
-    /* Top Menu Bar */
+    /* Top Menu Bar OBS */
     .obs-menubar {
-      height: 24px; background: #20212b; border-bottom: 1px solid #2d2f3d;
+      height: 24px; background: #1f202b; border-bottom: 1px solid #2d2f3d;
       display: flex; align-items: center; padding: 0 8px; gap: 12px; font-size: 11px; flex-shrink: 0;
     }
     .obs-menu-item { color: #b9bbbe; cursor: pointer; }
-    .obs-menu-item:hover, .obs-menu-item:active { color: #fff; }
+    .obs-menu-item:hover { color: #fff; }
 
-    /* Viewport Stage (Monitor Preview / Program) */
+    /* Area Viewport Monitor */
     .obs-stage-wrap {
-      flex: 1; display: flex; flex-direction: column; background: #0f1015;
+      flex: 1; display: flex; flex-direction: column; background: #0c0d12;
       padding: 4px; gap: 4px; overflow: hidden; position: relative;
     }
     .obs-monitors-container {
-      flex: 1; display: flex; width: 100%; height: 100%; gap: 6px; position: relative;
+      flex: 1; display: flex; width: 100%; height: 100%; gap: 6px;
+      justify-content: center; align-items: center; position: relative;
     }
+
+    /* Kotak Monitor OBS (Auto Aspect-Ratio 16:9 Anti Gepeng) */
     .obs-monitor {
-      flex: 1; height: 100%; display: flex; flex-direction: column;
-      background: #000; border: 1px solid #2d2f3d; position: relative; overflow: hidden;
+      height: 100%; display: flex; flex-direction: column;
+      background: #000; border: 1px solid #2d2f3d; position: relative;
+      aspect-ratio: 16 / 9; max-width: 100%; overflow: hidden;
     }
     .obs-monitor.preview-border { border-color: #2563eb; }
     .obs-monitor.program-border { border-color: #dc2626; }
-    
+
     .obs-monitor-title {
       height: 18px; font-size: 9px; font-weight: bold; letter-spacing: 0.8px;
       display: flex; align-items: center; justify-content: space-between; padding: 0 6px; flex-shrink: 0;
@@ -46,21 +49,21 @@
     .title-program { background: #7f1d1d; color: #fecaca; }
 
     .obs-canvas-box {
-      flex: 1; position: relative; overflow: hidden; background: #0b0c10;
-      display: flex; align-items: center; justify-content: center;
+      flex: 1; position: relative; overflow: hidden; background: #000;
+      width: 100%; height: 100%;
     }
     canvas.obs-display {
-      background: #000; width: 100%; height: 100%; object-fit: contain;
+      width: 100%; height: 100%; display: block; object-fit: contain; background: #000;
     }
 
-    /* OBS 8-Point Bounding Box */
+    /* OBS 8-Point Bounding Box Merah Presisi */
     .obs-bbox {
       position: absolute; border: 2px solid #ef4444; touch-action: none;
-      box-sizing: border-box; pointer-events: all;
+      box-sizing: border-box; pointer-events: all; z-index: 10;
     }
     .obs-handle {
-      position: absolute; width: 9px; height: 9px; background: #ffffff;
-      border: 2px solid #ef4444; border-radius: 1px; box-sizing: border-box;
+      position: absolute; width: 10px; height: 10px; background: #ffffff;
+      border: 2px solid #ef4444; border-radius: 2px; box-sizing: border-box;
     }
     .h-tl { left: -5px; top: -5px; }
     .h-tr { right: -5px; top: -5px; }
@@ -73,7 +76,7 @@
 
     /* Studio Mode Center Transition Bar */
     .obs-trans-bar {
-      width: 75px; display: none; flex-direction: column; justify-content: center;
+      width: 72px; display: none; flex-direction: column; justify-content: center;
       gap: 6px; align-items: center; flex-shrink: 0;
     }
     .obs-btn-trans {
@@ -82,23 +85,18 @@
     }
     .obs-btn-trans.active-t { background: #2563eb; border-color: #3b82f6; }
 
-    /* OBS Media Controls Toolbar */
+    /* Media Playback Controls Toolbar */
     .obs-media-bar {
-      height: 26px; background: #1a1b24; border: 1px solid #2d2f3d; border-radius: 3px;
+      height: 24px; background: #161720; border: 1px solid #2d2f3d; border-radius: 3px;
       display: none; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
     }
-    .obs-media-btn {
-      background: none; border: none; color: #dcddde; cursor: pointer; font-size: 11px; padding: 2px 4px;
-    }
-    .obs-media-btn:hover { color: #fff; }
-    .obs-seekbar {
-      flex: 1; height: 4px; accent-color: #5865f2; cursor: pointer;
-    }
+    .obs-media-btn { background: none; border: none; color: #dcddde; cursor: pointer; font-size: 11px; }
+    .obs-seekbar { flex: 1; height: 4px; accent-color: #5865f2; cursor: pointer; }
     .obs-media-time { font-family: monospace; font-size: 10px; color: #8e9297; }
 
-    /* Bottom OBS Docks */
+    /* Bottom Docks OBS */
     .obs-docks {
-      height: 135px; background: #1f202b; border-top: 1px solid #2d2f3d;
+      height: 135px; background: #1a1b24; border-top: 1px solid #2d2f3d;
       display: flex; flex-shrink: 0;
     }
     .obs-dock-panel {
@@ -106,14 +104,14 @@
     }
     .obs-dock-header {
       height: 20px; font-size: 9px; font-weight: bold; text-transform: uppercase;
-      background: #171821; color: #8e9297; padding: 0 8px; display: flex;
-      align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2c3a;
+      background: #14151e; color: #8e9297; padding: 0 8px; display: flex;
+      align-items: center; justify-content: space-between; border-bottom: 1px solid #262836;
     }
     .obs-dock-content {
       flex: 1; overflow-y: auto; padding: 3px; display: flex; flex-direction: column; gap: 2px;
     }
     .obs-dock-footer {
-      height: 26px; background: #171821; border-top: 1px solid #2a2c3a;
+      height: 26px; background: #14151e; border-top: 1px solid #262836;
       display: flex; align-items: center; padding: 0 4px; gap: 3px;
     }
     .obs-dock-btn {
@@ -124,18 +122,14 @@
     .obs-dock-btn:active { background: #5865f2; color: #fff; }
 
     .obs-item-row {
-      padding: 4px 6px; font-size: 11px; border-radius: 2px; background: #262837;
+      padding: 4px 6px; font-size: 11px; border-radius: 2px; background: #232533;
       color: #dcddde; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
     }
     .obs-item-row.selected { background: #5865f2; color: #fff; font-weight: 500; }
 
     /* Audio Mixer Dock */
-    .mixer-channel {
-      display: flex; flex-direction: column; gap: 4px; padding: 8px; width: 100%;
-    }
-    .mixer-label-row {
-      display: flex; justify-content: space-between; font-size: 10px; font-weight: bold;
-    }
+    .mixer-channel { display: flex; flex-direction: column; gap: 4px; padding: 8px; width: 100%; }
+    .mixer-label-row { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; }
     .obs-vu-track {
       width: 100%; height: 8px; background: #12131a; border-radius: 2px;
       position: relative; overflow: hidden; border: 1px solid #2a2c3a;
@@ -147,10 +141,8 @@
     }
     .obs-fader { width: 100%; accent-color: #5865f2; cursor: pointer; height: 14px; }
 
-    /* Controls Dock */
-    .controls-panel {
-      width: 135px; padding: 5px; display: flex; flex-direction: column; gap: 3px; border-right: none;
-    }
+    /* Controls Panel */
+    .controls-panel { width: 135px; padding: 5px; display: flex; flex-direction: column; gap: 3px; border-right: none; }
     .obs-ctrl-btn {
       flex: 1; background: #282a3a; border: 1px solid #3a3d52; color: #dcddde;
       border-radius: 3px; font-size: 10px; font-weight: 500; cursor: pointer;
@@ -161,12 +153,11 @@
 
     /* Status Bar */
     .obs-statusbar {
-      height: 20px; background: #13141a; border-top: 1px solid #20212b;
+      height: 20px; background: #101117; border-top: 1px solid #1f202b;
       display: flex; align-items: center; padding: 0 10px; font-size: 10px; color: #72767d; gap: 16px; flex-shrink: 0;
     }
-    .status-badge { display: flex; align-items: center; gap: 4px; }
 
-    /* Modal System OBS */
+    /* Modal System */
     .obs-modal-mask {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.85); z-index: 99999; align-items: center; justify-content: center;
@@ -174,7 +165,6 @@
     .obs-dialog {
       background: #20212b; border: 1px solid #303242; border-radius: 6px;
       width: 350px; max-height: 85vh; overflow-y: auto; padding: 12px; color: #dcddde;
-      box-shadow: 0 10px 30px #000;
     }
     .obs-dialog-head {
       font-size: 12px; font-weight: bold; border-bottom: 1px solid #303242;
@@ -207,10 +197,10 @@
     <span class="obs-menu-item">Help</span>
   </div>
 
-  <!-- Monitors Viewport -->
+  <!-- Viewport Area -->
   <div class="obs-stage-wrap">
-    <div class="obs-monitors-container">
-      <!-- Preview Monitor -->
+    <div class="obs-monitors-container" id="monitorsContainer">
+      <!-- Preview Monitor (16:9 Proporsional Asli) -->
       <div class="obs-monitor preview-border" id="previewMonitor">
         <div class="obs-monitor-title title-preview" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
         <div class="obs-canvas-box" id="previewStageBox">
@@ -316,11 +306,11 @@
   </div>
 </div>
 
-<!-- Input File Galeri Tersembunyi -->
+<!-- Input File Galeri -->
 <input type="file" id="pickImgFile" accept="image/*" style="display:none;" onchange="onFileImgSelected(event)" />
 <input type="file" id="pickVidFile" accept="video/*" style="display:none;" onchange="onFileVidSelected(event)" />
 
-<!-- Modal Sources Lengkap Ala OBS Desktop -->
+<!-- Modal Sources -->
 <div id="sourceModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -337,7 +327,7 @@
   </div>
 </div>
 
-<!-- Modal Settings OBS -->
+<!-- Modal Settings -->
 <div id="settingsModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -389,15 +379,12 @@
   let liveSeconds = 0, recSeconds = 0;
   let liveTimer = null, recTimer = null;
 
-  // Struktur Scene & Source Graph
   let currentSceneName = "Scene 1";
   let scenes = {
     "Scene 1": []
   };
 
-  // Program Scene Buffer (yang sedang tayang Live)
   let programSceneSources = [];
-
   let activeSource = null;
   let micVolume = 0.85;
 
@@ -415,7 +402,7 @@
   }
 
   /* ------------------------------------------------------------
-     60 FPS Master Render Loop: Menggambar Scene ke Preview & Program
+     60 FPS Master Render Loop
      ------------------------------------------------------------ */
   function renderSceneToCanvas(ctx, sourceList) {
     ctx.fillStyle = "#000000";
@@ -449,26 +436,21 @@
   }
 
   function masterEngineLoop() {
-    // 1. Render Preview Canvas
     renderSceneToCanvas(pCtx, scenes[currentSceneName] || []);
 
-    // 2. Render Program Canvas
     if (isStudioMode) {
       renderSceneToCanvas(gCtx, programSceneSources);
     } else {
-      // Saat bukan studio mode, program identik dengan preview
       renderSceneToCanvas(gCtx, scenes[currentSceneName] || []);
     }
 
-    // 3. Update Bounding Box Posisi jika ada source aktif
     updateBBoxOverlay();
-
     requestAnimationFrame(masterEngineLoop);
   }
   requestAnimationFrame(masterEngineLoop);
 
   /* ------------------------------------------------------------
-     8-Point OBS Bounding Box & Interactive Overlay (Touch/Mouse)
+     8-Point Bounding Box Presisi (Rasio Nyata Kanvas 1280x720)
      ------------------------------------------------------------ */
   const overlay = document.getElementById("previewInteractiveOverlay");
   let bboxEl = null;
@@ -495,10 +477,11 @@
     }
     bboxEl.style.display = "block";
 
-    // Konversi koordinat kanvas 1280x720 ke dimensi layar HP aktual
-    const rect = pCanvas.getBoundingClientRect();
-    const scaleX = rect.width / 1280;
-    const scaleY = rect.height / 720;
+    // Hitung faktor skala kanvas secara akurat sesuai ukuran layar aktual
+    const cw = pCanvas.clientWidth;
+    const ch = pCanvas.clientHeight;
+    const scaleX = cw / 1280;
+    const scaleY = ch / 720;
 
     bboxEl.style.left = (pCanvas.offsetLeft + (activeSource.x * scaleX)) + "px";
     bboxEl.style.top = (pCanvas.offsetTop + (activeSource.y * scaleY)) + "px";
@@ -507,7 +490,7 @@
   }
 
   function setupBBoxEvents(el) {
-    let mode = null; // 'drag' or handle type
+    let mode = null;
     let sx, sy, initX, initY, initW, initH;
 
     function onPointerDown(e) {
@@ -530,9 +513,10 @@
     function onPointerMove(e) {
       if (!mode || !activeSource) return;
       const p = e.touches ? e.touches[0] : e;
-      const rect = pCanvas.getBoundingClientRect();
-      const scaleX = 1280 / rect.width;
-      const scaleY = 720 / rect.height;
+      const cw = pCanvas.clientWidth;
+      const ch = pCanvas.clientHeight;
+      const scaleX = 1280 / cw;
+      const scaleY = 720 / ch;
 
       const dx = (p.clientX - sx) * scaleX;
       const dy = (p.clientY - sy) * scaleY;
@@ -541,7 +525,6 @@
         activeSource.x = Math.max(0, Math.min(1280 - activeSource.w, initX + dx));
         activeSource.y = Math.max(0, Math.min(720 - activeSource.h, initY + dy));
       } else {
-        // Resize logic 8 titik
         if (mode === "br") {
           activeSource.w = Math.max(50, initW + dx);
           activeSource.h = Math.max(30, initH + dy);
@@ -602,7 +585,6 @@
     list.innerHTML = "";
     const arr = scenes[currentSceneName] || [];
 
-    // Render secara reverse (atas adalah layer paling atas)
     for (let i = arr.length - 1; i >= 0; i--) {
       const src = arr[i];
       const row = document.createElement("div");
@@ -686,7 +668,7 @@
   }
 
   /* ------------------------------------------------------------
-     Source Add Handlers (Galeri, Kamera, Drone, Teks)
+     Source Add Handlers
      ------------------------------------------------------------ */
   function triggerPick(type) {
     closeModal("sourceModal");
@@ -700,11 +682,16 @@
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = () => {
+      // Skala awal gambar otomatis proporsional di tengah kanvas
+      const w = 640;
+      const h = Math.round((img.naturalHeight / img.naturalWidth) * 640) || 360;
       const srcObj = {
         name: "🖼️ " + file.name,
         type: "image",
         element: img,
-        x: 100, y: 80, w: 480, h: 320,
+        x: Math.round((1280 - w) / 2),
+        y: Math.round((720 - h) / 2),
+        w: w, h: h,
         visible: true
       };
       scenes[currentSceneName].push(srcObj);
@@ -723,15 +710,21 @@
     vid.playsInline = true;
     vid.play();
 
-    const srcObj = {
-      name: "🎬 " + file.name,
-      type: "video",
-      element: vid,
-      x: 80, y: 60, w: 640, h: 360,
-      visible: true
+    vid.onloadedmetadata = () => {
+      const w = 854;
+      const h = Math.round((vid.videoHeight / vid.videoWidth) * 854) || 480;
+      const srcObj = {
+        name: "🎬 " + file.name,
+        type: "video",
+        element: vid,
+        x: Math.round((1280 - w) / 2),
+        y: Math.round((720 - h) / 2),
+        w: w, h: h,
+        visible: true
+      };
+      scenes[currentSceneName].push(srcObj);
+      selectSource(srcObj);
     };
-    scenes[currentSceneName].push(srcObj);
-    selectSource(srcObj);
   }
 
   function initCamDevice(facing) {
@@ -749,7 +742,7 @@
           name: facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera",
           type: "camera",
           element: vid,
-          x: 100, y: 80, w: 640, h: 360,
+          x: 160, y: 90, w: 960, h: 540,
           visible: true
         };
         scenes[currentSceneName].push(srcObj);
@@ -765,7 +758,7 @@
     const srcObj = {
       name: "🛸 " + u,
       type: "drone",
-      x: 100, y: 80, w: 640, h: 360,
+      x: 160, y: 90, w: 960, h: 540,
       visible: true
     };
     scenes[currentSceneName].push(srcObj);
@@ -774,13 +767,13 @@
 
   function addTextGDI() {
     closeModal("sourceModal");
-    const t = prompt("Overlay Text:", "LIVE DRONE STREAM");
+    const t = prompt("Overlay Text:", "LIVE STREAM");
     if (!t) return;
     const srcObj = {
       name: "📝 " + t,
       type: "text",
       text: t,
-      x: 120, y: 550, w: 500, h: 60,
+      x: 100, y: 600, w: 600, h: 60,
       visible: true
     };
     scenes[currentSceneName].push(srcObj);
@@ -793,7 +786,7 @@
       name: "⬛ Color Source",
       type: "color",
       color: "#2563eb",
-      x: 50, y: 50, w: 400, h: 250,
+      x: 100, y: 100, w: 500, h: 300,
       visible: true
     };
     scenes[currentSceneName].push(srcObj);
@@ -859,7 +852,7 @@
   }
 
   /* ------------------------------------------------------------
-     Studio Mode Dual Monitors & Smooth Cut/Fade Transition
+     Studio Mode Dual Monitor (Proporsional 16:9 Otomatis)
      ------------------------------------------------------------ */
   function toggleStudioMode() {
     isStudioMode = !isStudioMode;
@@ -872,7 +865,6 @@
       trans.style.display = "flex";
       btn.style.background = "#5865f2";
       btn.style.color = "#fff";
-      // Sinkronkan program awal
       execTransition('cut');
     } else {
       progBox.style.display = "none";
@@ -884,7 +876,6 @@
 
   function execTransition(type) {
     const currentList = scenes[currentSceneName] || [];
-    // Deep copy state source ke Program tanpa merusak referensi media asli
     programSceneSources = currentList.map(item => ({ ...item }));
 
     if (type === "fade") {
@@ -903,6 +894,14 @@
   function toggleStream() {
     const btn = document.getElementById("btnStream");
     if (!isStreaming) {
+      const sKey = localStorage.getItem("obs_key");
+      const sUrl = localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/";
+      if (!sKey) {
+        openSettingsModal();
+        alert("Silakan masukkan Stream Key Facebook di Settings terlebih dahulu!");
+        return;
+      }
+
       isStreaming = true;
       btn.innerText = "Stop Streaming";
       btn.classList.add("obs-live-on");
@@ -912,11 +911,18 @@
         document.getElementById("lblLive").innerText = "● LIVE: " + fmtTimer(liveSeconds);
         document.getElementById("lblKbit").innerText = "Kbit/s: " + (3300 + Math.floor(Math.random()*300));
       }, 1000);
+
+      if (window.AndroidBridge && window.AndroidBridge.notifyStreamState) {
+        window.AndroidBridge.notifyStreamState(true, sUrl, sKey);
+      }
     } else {
       isStreaming = false;
       btn.innerText = "Start Streaming";
       btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
+      if (window.AndroidBridge && window.AndroidBridge.notifyStreamState) {
+        window.AndroidBridge.notifyStreamState(false, "", "");
+      }
     }
   }
 
@@ -940,14 +946,13 @@
   }
 
   /* ------------------------------------------------------------
-     Audio Meter & VU Bar Realtime
+     Audio Meter & Realtime VU Bar
      ------------------------------------------------------------ */
-  function setMicVolume(v) {
-    micVolume = v / 100;
-  }
+  function setMicVolume(v) { micVolume = v / 100; }
 
   function initAudioMeter() {
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      window.micAudioStream = stream;
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;

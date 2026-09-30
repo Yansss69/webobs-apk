@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.0-NATIVE.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.1-PERFECT.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.0-native-${{ github.run_number }}"
-        name: "WebOBS Studio v4.0 NATIVE (Build #${{ github.run_number }})"
-        body: "Authentic OBS Studio Mobile: 60FPS Canvas Render Engine, 8-Point Bounding Box, Real Media Controls Toolbar, No-Freeze Studio Mode."
-        files: package_output/WebOBS-v4.0-NATIVE.apk
+        tag_name: "v4.1-perfect-${{ github.run_number }}"
+        name: "WebOBS Studio v4.1 PERFECT (Build #${{ github.run_number }})"
+        body: "Perbaikan Total: Layar 16:9 Proporsional di Single/Studio Mode, Bounding Box Merah Pas Menempel, Media Controls, Live Transmitter."
+        files: package_output/WebOBS-v4.1-PERFECT.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
