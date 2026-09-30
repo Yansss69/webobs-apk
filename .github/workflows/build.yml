@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -26,14 +28,19 @@ jobs:
       - name: Build Debug APK
         run: |
           gradle wrapper
-          ./gradlew assembleDebug --stacktrace
-          mkdir -p output_apk
-          find . -name "*.apk" -exec cp {} output_apk/ \;
-          ls -lh output_apk/
+          ./gradlew assembleDebug --no-daemon
+          APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
+          echo "Ditemukan APK: $APK_PATH"
+          mkdir -p release_apk
+          cp "$APK_PATH" release_apk/WebOBS.apk
+          ls -lh release_apk/
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
         with:
-          name: WebOBS-APK
-          path: output_apk/*.apk
-          if-no-files-found: error
+          tag_name: v1.0
+          name: "WebOBS v1.0"
+          files: release_apk/WebOBS.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
