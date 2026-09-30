@@ -2016,5 +2016,327 @@
     });
   });
 </script>
+
+<!-- TRANSFORM_STUDIO_ENGINE_START -->
+<style>
+  /* Kanvas Monitor OBS */
+  .canvas-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #0d0e12;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* Kotak Transform Merah OBS */
+  .obs-transform-item {
+    position: absolute;
+    border: 2px solid #ef4444;
+    cursor: move;
+    box-sizing: border-box;
+    display: inline-block;
+  }
+  .obs-transform-item.active {
+    border-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  }
+
+  /* Titik Pegangan Sudut untuk Resize (Perbesar/Perkecil) */
+  .obs-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    border: 2px solid #ef4444;
+    border-radius: 2px;
+    box-sizing: border-box;
+  }
+  .obs-handle.br {
+    right: -7px;
+    bottom: -7px;
+    cursor: se-resize;
+  }
+  .obs-handle.tl {
+    left: -7px;
+    top: -7px;
+    cursor: nw-resize;
+  }
+
+  /* Layout Studio Mode Dua Layar */
+  .studio-split-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    gap: 6px;
+    align-items: center;
+    background: #14151b;
+    padding: 4px;
+    box-sizing: border-box;
+  }
+  .studio-monitor {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .monitor-label {
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .monitor-preview-label { background: #1e3a8a; color: #93c5fd; }
+  .monitor-program-label { background: #7f1d1d; color: #fca5a5; }
+
+  /* Tombol Transisi di Tengah */
+  .studio-transition-bar {
+    width: 75px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+  }
+  .btn-trans {
+    width: 100%;
+    background: #2b2d3c;
+    border: 1px solid #45485f;
+    color: #fff;
+    padding: 8px 4px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-trans:active { background: #5865f2; }
+</style>
+
+<script>
+  let inStudioMode = false;
+  let selectedElement = null;
+
+  // Pasang sistem Drag & Scale (Perbesar/Perkecil via Sudut)
+  function makeTransformable(el) {
+    el.classList.add("obs-transform-item", "active");
+
+    // Buat handle sudut kanan bawah untuk resize
+    const handleBR = document.createElement("div");
+    handleBR.className = "obs-handle br";
+    el.appendChild(handleBR);
+
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY, startW, startH, startLeft, startTop;
+
+    function onPointerDown(e) {
+      e.stopPropagation();
+      const pointer = e.touches ? e.touches[0] : e;
+      startX = pointer.clientX;
+      startY = pointer.clientY;
+      startLeft = el.offsetLeft;
+      startTop = el.offsetTop;
+      startW = el.offsetWidth;
+      startH = el.offsetHeight;
+
+      if (e.target === handleBR) {
+        isResizing = true;
+      } else {
+        isDragging = true;
+      }
+
+      document.querySelectorAll(".obs-transform-item").forEach(item => item.classList.remove("active"));
+      el.classList.add("active");
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging && !isResizing) return;
+      const pointer = e.touches ? e.touches[0] : e;
+      const dx = pointer.clientX - startX;
+      const dy = pointer.clientY - startY;
+
+      if (isDragging) {
+        el.style.left = Math.max(0, startLeft + dx) + "px";
+        el.style.top = Math.max(0, startTop + dy) + "px";
+      } else if (isResizing) {
+        el.style.width = Math.max(40, startW + dx) + "px";
+        el.style.height = Math.max(40, startH + dy) + "px";
+        const innerMedia = el.querySelector("video, img");
+        if (innerMedia) {
+          innerMedia.style.width = "100%";
+          innerMedia.style.height = "100%";
+        }
+      }
+    }
+
+    function onPointerUp() {
+      isDragging = false;
+      isResizing = false;
+    }
+
+    el.addEventListener("mousedown", onPointerDown);
+    el.addEventListener("touchstart", onPointerDown, { passive: false });
+    window.addEventListener("mousemove", onPointerMove);
+    window.addEventListener("touchmove", onPointerMove, { passive: false });
+    window.addEventListener("mouseup", onPointerUp);
+    window.addEventListener("touchend", onPointerUp);
+  }
+
+  // Bungkus sumber yang baru masuk ke dalam bounding box merah
+  function wrapMediaInTransformBox(mediaEl, defaultW, defaultH) {
+    const box = document.createElement("div");
+    box.style.left = "40px";
+    box.style.top = "30px";
+    box.style.width = (defaultW || 240) + "px";
+    box.style.height = (defaultH || 135) + "px";
+
+    mediaEl.style.width = "100%";
+    mediaEl.style.height = "100%";
+    mediaEl.style.objectFit = "cover";
+    mediaEl.style.pointerEvents = "none";
+
+    box.appendChild(mediaEl);
+    makeTransformable(box);
+    return box;
+  }
+
+  // Dapatkan Kanvas Utama
+  function getActiveCanvas() {
+    let previewBox = document.getElementById("studioPreviewCanvas");
+    if (previewBox) return previewBox;
+    let mainContainer = getPreviewContainer();
+    if (!mainContainer.classList.contains("canvas-stage")) {
+      mainContainer.classList.add("canvas-stage");
+    }
+    return mainContainer;
+  }
+
+  // Override fungsi input gambar/galeri agar langsung punya box merah transform
+  window.onImageSelected = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const canvas = getActiveCanvas();
+    const img = document.createElement("img");
+    img.src = url;
+    const box = wrapMediaInTransformBox(img, 200, 150);
+    canvas.appendChild(box);
+    addSourceItemToList("🖼️ " + file.name);
+  };
+
+  // Override fungsi video galeri
+  window.onVideoSelected = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const canvas = getActiveCanvas();
+    const vid = document.createElement("video");
+    vid.src = url;
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    const box = wrapMediaInTransformBox(vid, 260, 146);
+    canvas.appendChild(box);
+    addSourceItemToList("🎬 " + file.name);
+  };
+
+  // Override fungsi kamera agar masuk ke box transform dan bisa digeser/diperkecil
+  const prevAddSource = window.addSource;
+  window.addSource = function(type) {
+    closeModal("obsSourcesModal");
+    const canvas = getActiveCanvas();
+
+    if (type === "camera_back" || type === "camera_front") {
+      const facing = (type === "camera_front") ? "user" : "environment";
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
+        .then(stream => {
+          const video = document.createElement("video");
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = true;
+          video.srcObject = stream;
+          const box = wrapMediaInTransformBox(video, 280, 158);
+          canvas.appendChild(box);
+          addSourceItemToList(type === "camera_front" ? "🤳 Front Camera" : "📹 Rear Camera");
+        })
+        .catch(err => console.error(err));
+    } else if (type === "drone") {
+      const rtsp = prompt("Masukkan URL Drone RTSP/RTMP:", "rtsp://192.168.1.1:8554/live");
+      if (rtsp) addSourceItemToList("🛸 Drone: " + rtsp);
+    }
+  };
+
+  // Toggle Studio Mode (Dual Screen + Transition Bar)
+  window.toggleStudioMode = function() {
+    const container = getPreviewContainer();
+    if (!container) return;
+    inStudioMode = !inStudioMode;
+
+    if (inStudioMode) {
+      const currentContent = container.innerHTML;
+      container.style.display = "block";
+      container.innerHTML = `
+        <div class="studio-split-layout">
+          <div class="studio-monitor">
+            <div class="monitor-label monitor-preview-label"><span>PREVIEW</span><span>EDITING</span></div>
+            <div id="studioPreviewCanvas" class="canvas-stage" style="border: 2px solid #2563eb;">${currentContent}</div>
+          </div>
+          <div class="studio-transition-bar">
+            <button class="btn-trans" onclick="executeTransition('cut')">CUT</button>
+            <button class="btn-trans" onclick="executeTransition('fade')" style="background:#2563eb;">TRANSITION</button>
+          </div>
+          <div class="studio-monitor">
+            <div class="monitor-label monitor-program-label"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
+            <div id="studioProgramCanvas" class="canvas-stage" style="border: 2px solid #dc2626;"></div>
+          </div>
+        </div>
+      `;
+
+      // Aktifkan kembali drag handles di kanvas preview
+      container.querySelectorAll(".obs-transform-item").forEach(item => makeTransformable(item));
+    } else {
+      const previewCanvas = document.getElementById("studioPreviewCanvas");
+      const savedHTML = previewCanvas ? previewCanvas.innerHTML : "";
+      container.innerHTML = savedHTML;
+      container.classList.add("canvas-stage");
+      container.querySelectorAll(".obs-transform-item").forEach(item => makeTransformable(item));
+    }
+  };
+
+  // Logika Eksekusi Transisi (Preview didorong ke Program Live)
+  window.executeTransition = function(type) {
+    const previewCanvas = document.getElementById("studioPreviewCanvas");
+    const programCanvas = document.getElementById("studioProgramCanvas");
+    if (!previewCanvas || !programCanvas) return;
+
+    if (type === "fade") {
+      programCanvas.style.transition = "opacity 0.25s ease-out";
+      programCanvas.style.opacity = "0.2";
+      setTimeout(() => {
+        programCanvas.innerHTML = previewCanvas.innerHTML;
+        programCanvas.style.opacity = "1";
+        // Hilangkan border seleksi merah di layar Program siaran
+        programCanvas.querySelectorAll(".obs-transform-item").forEach(el => {
+          el.style.border = "none";
+          const h = el.querySelector(".obs-handle");
+          if (h) h.remove();
+        });
+      }, 250);
+    } else {
+      programCanvas.innerHTML = previewCanvas.innerHTML;
+      programCanvas.querySelectorAll(".obs-transform-item").forEach(el => {
+        el.style.border = "none";
+        const h = el.querySelector(".obs-handle");
+        if (h) h.remove();
+      });
+    }
+  };
+</script>
+<!-- TRANSFORM_STUDIO_ENGINE_END -->
 </body>
 </html>
