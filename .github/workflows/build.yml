@@ -30,17 +30,15 @@ jobs:
           gradle wrapper
           ./gradlew assembleDebug --no-daemon
           APK_PATH=$(find . -name "*.apk" -type f | head -n 1)
-          echo "Ditemukan APK: $APK_PATH"
           mkdir -p release_apk
           cp "$APK_PATH" release_apk/WebOBS.apk
-          ls -lh release_apk/
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         if: success()
         with:
-          tag_name: v1.0
-          name: "WebOBS v1.0"
+          tag_name: v1.1
+          name: "WebOBS v1.1 Standalone"
           files: release_apk/WebOBS.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
