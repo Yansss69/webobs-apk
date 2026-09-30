@@ -1,40 +1,79 @@
 package com.webobs.studio;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.os.Bundle;
-import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class MainActivity extends Activity {
     private WebView webView;
+    private Process mediaMtxProcess;
 
+    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        startEmbeddedMediaMTX();
+
         webView = new WebView(this);
         setContentView(webView);
 
-        WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setAllowFileAccess(true);
-        webSettings.setAllowContentAccess(true);
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setAllowFileAccess(true);
 
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
-
-        // Membaca file internal di dalam APK
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    private void startEmbeddedMediaMTX() {
+        new Thread(() -> {
+            try {
+                File binFile = new File(getFilesDir(), "mediamtx");
+                File confFile = new File(getFilesDir(), "mediamtx.yml");
+
+                if (!binFile.exists() || binFile.length() == 0) {
+                    copyAsset("mediamtx", binFile);
+                    binFile.setExecutable(true, false);
+                }
+
+                if (!confFile.exists()) {
+                    copyAsset("mediamtx.yml", confFile);
+                }
+
+                ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
+                pb.directory(getFilesDir());
+                mediaMtxProcess = pb.start();
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    private void copyAsset(String assetName, File outFile) throws Exception {
+        try (InputStream in = getAssets().open(assetName);
+             OutputStream out = new FileOutputStream(outFile)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
+        }
+    }
+
     @Override
-    public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mediaMtxProcess != null) {
+            mediaMtxProcess.destroy();
         }
     }
 }
