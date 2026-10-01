@@ -30,7 +30,6 @@ import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegSession;
 
 import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,7 +41,6 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
 
-    // Pipeline Streaming via Named Pipe FFmpegKit
     private String pipePath = null;
     private FileOutputStream pipeOutputStream = null;
     private FFmpegSession currentFFmpegSession = null;
@@ -54,7 +52,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-            Log.e(TAG, "Global Exception caught: " + throwable.getMessage(), throwable);
+            Log.e(TAG, "Uncaught Exception: " + throwable.getMessage(), throwable);
         });
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
@@ -115,7 +113,6 @@ public class MainActivity extends Activity {
                         startPipeBroadcast(rtmpUrl, streamKey);
                     } catch (Exception e) {
                         Log.e(TAG, "Error startStream: ", e);
-                        Toast.makeText(MainActivity.this, "Gagal memulai stream: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -127,9 +124,7 @@ public class MainActivity extends Activity {
                     byte[] data = Base64.decode(base64Data, Base64.NO_WRAP);
                     pipeOutputStream.write(data);
                     pipeOutputStream.flush();
-                } catch (Exception e) {
-                    // Pipe stream catch
-                }
+                } catch (Exception e) {}
             }
 
             @JavascriptInterface
@@ -159,19 +154,15 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Buat Named Pipe Android resmi via FFmpegKitConfig
                 pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
-                
                 String cmd = "-re -i " + pipePath + " " +
                              "-c:v libx264 -preset ultrafast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
                              "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + targetRtmp + "\"";
 
                 currentFFmpegSession = FFmpegKit.executeAsync(cmd, session -> {
-                    Log.i(TAG, "FFmpeg Session selesai.");
                     isBroadcasting = false;
                 });
 
-                // Buka output stream ke named pipe
                 pipeOutputStream = new FileOutputStream(pipePath);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Dimulai!", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {

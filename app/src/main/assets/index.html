@@ -80,7 +80,6 @@
     }
     .obs-btn-trans.active-t { background: #2563eb; border-color: #3b82f6; }
 
-    /* Media Playback Toolbar Selalu Siap Tampil */
     .obs-media-bar {
       height: 24px; background: #161720; border: 1px solid #2d2f3d; border-radius: 3px;
       display: flex; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
@@ -121,7 +120,6 @@
     }
     .obs-item-row.selected { background: #5865f2; color: #fff; font-weight: 500; }
 
-    /* Dual VU-Meter Warna-Warni Realtime */
     .mixer-channel { display: flex; flex-direction: column; gap: 2px; padding: 4px 8px; }
     .mixer-label-row { display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; }
     .obs-vu-track {
@@ -210,14 +208,13 @@
       </div>
     </div>
 
-    <!-- Media Controls Toolbar: Selalu Siap Memutar Video / Musik -->
     <div class="obs-media-bar" id="mediaToolbar">
       <button class="obs-media-btn" id="mPlayBtn" onclick="togglePlayMedia()">⏸</button>
       <button class="obs-media-btn" onclick="stopMedia()">⏹</button>
       <button class="obs-media-btn" onclick="restartMedia()">⏮</button>
       <input type="range" class="obs-seekbar" id="mSeekbar" min="0" max="100" value="0" oninput="onSeekMedia(this.value)">
       <span class="obs-media-time" id="mTimeLabel">00:00:00 / 00:00:00</span>
-      <button class="obs-media-btn" style="background:#282a3a; padding:2px 8px; border-radius:2px; font-weight:bold;" onclick="fitActiveSourceToScreen()" title="Fit / Full Screen">⛶ Fit Screen</button>
+      <button class="obs-media-btn" style="background:#282a3a; padding:2px 8px; border-radius:2px; font-weight:bold;" onclick="fitActiveSourceToScreen()">⛶ Fit Screen</button>
     </div>
   </div>
 
@@ -244,7 +241,6 @@
       </div>
     </div>
 
-    <!-- Dual Audio Mixer (Mic + Media Video/Audio BGM) -->
     <div class="obs-dock-panel" style="flex: 1;">
       <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● STEREO DUAL</span></div>
       <div class="obs-dock-content" style="gap:4px;">
@@ -294,12 +290,10 @@
   </div>
 </div>
 
-<!-- Input File Galeri: Gambar, Video, dan Musik MP3 -->
 <input type="file" id="pickImgFile" accept="image/*" style="display:none;" onchange="onFileImgSelected(event)" />
 <input type="file" id="pickVidFile" accept="video/*" style="display:none;" onchange="onFileVidSelected(event)" />
 <input type="file" id="pickAudFile" accept="audio/*" style="display:none;" onchange="onFileAudSelected(event)" />
 
-<!-- Modal Sources -->
 <div id="sourceModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -318,7 +312,6 @@
   </div>
 </div>
 
-<!-- Modal Kustomisasi Running Text -->
 <div id="runningTextModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -357,7 +350,6 @@
   </div>
 </div>
 
-<!-- Modal Settings -->
 <div id="settingsModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -410,13 +402,9 @@
   let scenes = { "Scene 1": [] };
   let programSceneSources = [];
   let activeSource = null;
-
-  let wsLiveSocket = null;
   let canvasMediaRecorder = null;
 
-  /* ============================================================
-     MASTER WEB AUDIO MIXER & VU-METER ENGINE
-     ============================================================ */
+  /* MASTER WEB AUDIO MIXER & VU-METER */
   let masterAudioCtx = null;
   let masterAudioDest = null;
   let micGainNode = null, mediaGainNode = null;
@@ -493,7 +481,6 @@
       requestAnimationFrame(renderVU);
       if (!masterAudioCtx || !micAnalyser || !mediaAnalyser) return;
 
-      // Render VU Meter Mic
       micAnalyser.getByteFrequencyData(micData);
       let sumMic = 0;
       for (let i = 0; i < micData.length; i++) sumMic += micData[i];
@@ -504,7 +491,6 @@
       micLabel.innerText = dbMic + " dB";
       micLabel.style.color = dbMic > -5 ? "#ef4444" : (dbMic > -18 ? "#eab308" : "#22c55e");
 
-      // Render VU Meter Media
       mediaAnalyser.getByteFrequencyData(mediaData);
       let sumMedia = 0;
       for (let i = 0; i < mediaData.length; i++) sumMedia += mediaData[i];
@@ -544,9 +530,7 @@
     updateBBoxOverlay();
   }
 
-  /* ============================================================
-     RENDER ENGINE (RUNNING TEXT DI PROGRAM & PREVIEW BERJALAN)
-     ============================================================ */
+  /* RENDER PIPELINE DENGAN DUAL MARQUEE */
   function renderSceneToCanvas(ctx, sourceList) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, 1280, 720);
@@ -606,7 +590,6 @@
   }
 
   function masterEngineLoop() {
-    // Jalankan pergerakan teks di kedua monitor sekaligus
     advanceMarqueePositions(scenes[currentSceneName] || []);
     if (isStudioMode) {
       advanceMarqueePositions(programSceneSources);
@@ -999,7 +982,6 @@
     selectSource(srcObj);
   }
 
-  /* MEDIA PLAYBACK CONTROLS */
   let currMediaEl = null;
 
   function attachMediaControls(el) {
@@ -1049,7 +1031,6 @@
     return "00:" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
-  /* STUDIO MODE TRANSITIONS */
   function toggleStudioMode() {
     isStudioMode = !isStudioMode;
     const progBox = document.getElementById("programMonitor");
@@ -1081,9 +1062,8 @@
     }
   }
 
-  /* BROADCAST PIPELINE */
-  
-  function pushCanvasViaTcp() {
+  /* BROADCAST PIPELINE VIA BASE64 BRIDGE */
+  function pushCanvasViaBridge() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
@@ -1101,28 +1081,24 @@
         if (e.data && e.data.size > 0 && window.AndroidBridge && window.AndroidBridge.sendChunkBase64) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            const b64 = reader.result.split(",")[1];
-            if (b64) window.AndroidBridge.sendChunkBase64(b64);
+            if (reader.result) {
+              const b64 = reader.result.split(",")[1];
+              if (b64) window.AndroidBridge.sendChunkBase64(b64);
+            }
           };
           reader.readAsDataURL(e.data);
         }
       };
 
-      canvasMediaRecorder.start(200);
+      canvasMediaRecorder.start(250);
     } catch (err) {
       console.log("Broadcast error:", err);
     }
   }
 
-  function stopTcpStream() {
+  function stopBridgeStream() {
     if (canvasMediaRecorder && canvasMediaRecorder.state !== "inactive") {
       canvasMediaRecorder.stop();
-    }
-  }
-
-    if (wsLiveSocket) {
-      wsLiveSocket.close();
-      wsLiveSocket = null;
     }
   }
 
@@ -1151,7 +1127,7 @@
         document.getElementById("lblKbit").innerText = "Kbit/s: " + (2500 + Math.floor(Math.random()*200));
       }, 1000);
 
-      pushCanvasViaTcp();
+      pushCanvasViaBridge();
       if (window.AndroidBridge && window.AndroidBridge.startStreamToFacebook) {
         window.AndroidBridge.startStreamToFacebook(sUrl, sKey);
       }
@@ -1160,7 +1136,7 @@
       btn.innerText = "Start Streaming";
       btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
-      stopTcpStream();
+      stopBridgeStream();
       if (window.AndroidBridge && window.AndroidBridge.stopStream) {
         window.AndroidBridge.stopStream();
       }
@@ -1189,7 +1165,6 @@
   window.addEventListener("DOMContentLoaded", () => {
     renderScenesUI();
     renderSourcesUI();
-    // Inisialisasi Audio Engine otomatis saat pertama kali layar disentuh
     window.addEventListener("touchstart", () => { initMasterAudio(); }, { once: true });
     window.addEventListener("mousedown", () => { initMasterAudio(); }, { once: true });
   });

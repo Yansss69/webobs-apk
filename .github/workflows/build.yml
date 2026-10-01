@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.4-NO-CRASH.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.5-MASTER.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.4-no-crash-${{ github.run_number }}"
-        name: "WebOBS Studio v5.4 NO CRASH (Build #${{ github.run_number }})"
-        body: "Perbaikan Total Mental / Crash: Menggunakan Named Pipe Resmi FFmpegKit (Bypass Local TCP Socket), perlindungan crash aman di Android 13/14."
-        files: package_output/WebOBS-v5.4-NO-CRASH.apk
+        tag_name: "v5.5-master-${{ github.run_number }}"
+        name: "WebOBS Studio v5.5 MASTER (Build #${{ github.run_number }})"
+        body: "Total Clean Fix: Menghapus semua sintaks error JavaScript, memulihkan responsivitas tombol 100%, Named Pipe FFmpeg anti-crash."
+        files: package_output/WebOBS-v5.5-MASTER.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
