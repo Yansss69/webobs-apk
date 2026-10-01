@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Lingkaran Luar Ring Biru & Merah OBS -->
+    <path
+        android:strokeColor="#3B82F6"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 54,18 A 36,36 0 0,1 90,54" />
+    <path
+        android:strokeColor="#EF4444"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 90,54 A 36,36 0 0,1 54,90" />
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 54,90 A 36,36 0 0,1 18,54" />
+    <path
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 18,54 A 36,36 0 0,1 54,18" />
+
+    <!-- Tiga Bilah Khas Logo OBS di Tengah -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,34 C42.95,34 34,42.95 34,54 C34,65.05 42.95,74 54,74 C65.05,74 74,65.05 74,54 C74,42.95 65.05,34 54,34 Z M54,66 C47.37,66 42,60.63 42,54 C42,47.37 47.37,42 54,42 C60.63,42 66,47.37 66,54 C66,60.63 60.63,66 54,66 Z" />
+    
+    <!-- Titik Kamera / Live Tengah -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M54,48 A 6,6 0 1,1 53.99,48 Z" />
+</vector>
