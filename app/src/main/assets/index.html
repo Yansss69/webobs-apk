@@ -80,9 +80,10 @@
     }
     .obs-btn-trans.active-t { background: #2563eb; border-color: #3b82f6; }
 
+    /* Media Playback Toolbar Selalu Siap Tampil */
     .obs-media-bar {
       height: 24px; background: #161720; border: 1px solid #2d2f3d; border-radius: 3px;
-      display: none; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
+      display: flex; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
     }
     .obs-media-btn { background: none; border: none; color: #dcddde; cursor: pointer; font-size: 11px; }
     .obs-seekbar { flex: 1; height: 4px; accent-color: #5865f2; cursor: pointer; }
@@ -120,17 +121,17 @@
     }
     .obs-item-row.selected { background: #5865f2; color: #fff; font-weight: 500; }
 
-    /* Dual Audio Mixer Controls */
+    /* Dual VU-Meter Warna-Warni Realtime */
     .mixer-channel { display: flex; flex-direction: column; gap: 2px; padding: 4px 8px; }
     .mixer-label-row { display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; }
     .obs-vu-track {
-      width: 100%; height: 6px; background: #12131a; border-radius: 2px;
+      width: 100%; height: 7px; background: #0c0d12; border-radius: 2px;
       position: relative; overflow: hidden; border: 1px solid #2a2c3a;
     }
     .obs-vu-fill {
-      height: 100%; width: 0%;
-      background: linear-gradient(to right, #22c55e 0%, #22c55e 70%, #eab308 85%, #ef4444 100%);
-      transition: width 0.05s ease-out;
+      height: 100%; width: 4%;
+      background: linear-gradient(to right, #22c55e 0%, #22c55e 65%, #eab308 80%, #ef4444 100%);
+      transition: width 0.04s ease-out;
     }
     .obs-fader { width: 100%; accent-color: #5865f2; cursor: pointer; height: 12px; }
 
@@ -209,13 +210,14 @@
       </div>
     </div>
 
+    <!-- Media Controls Toolbar: Selalu Siap Memutar Video / Musik -->
     <div class="obs-media-bar" id="mediaToolbar">
       <button class="obs-media-btn" id="mPlayBtn" onclick="togglePlayMedia()">⏸</button>
       <button class="obs-media-btn" onclick="stopMedia()">⏹</button>
       <button class="obs-media-btn" onclick="restartMedia()">⏮</button>
       <input type="range" class="obs-seekbar" id="mSeekbar" min="0" max="100" value="0" oninput="onSeekMedia(this.value)">
       <span class="obs-media-time" id="mTimeLabel">00:00:00 / 00:00:00</span>
-      <button class="obs-media-btn" style="background:#282a3a; padding:2px 6px; border-radius:2px; font-weight:bold;" onclick="fitActiveSourceToScreen()" title="Fit / Full Screen">⛶ Full Screen</button>
+      <button class="obs-media-btn" style="background:#282a3a; padding:2px 8px; border-radius:2px; font-weight:bold;" onclick="fitActiveSourceToScreen()" title="Fit / Full Screen">⛶ Fit Screen</button>
     </div>
   </div>
 
@@ -242,7 +244,7 @@
       </div>
     </div>
 
-    <!-- Dual Audio Mixer: Mic + Media Video -->
+    <!-- Dual Audio Mixer (Mic + Media Video/Audio BGM) -->
     <div class="obs-dock-panel" style="flex: 1;">
       <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● STEREO DUAL</span></div>
       <div class="obs-dock-content" style="gap:4px;">
@@ -256,7 +258,7 @@
         </div>
         <div class="mixer-channel">
           <div class="mixer-label-row">
-            <span>Media/Video</span>
+            <span>Media/Music BGM</span>
             <span id="mediaDbLabel" style="color:#22c55e;">-inf dB</span>
           </div>
           <div class="obs-vu-track"><div class="obs-vu-fill" id="mediaVuBar"></div></div>
@@ -292,9 +294,12 @@
   </div>
 </div>
 
+<!-- Input File Galeri: Gambar, Video, dan Musik MP3 -->
 <input type="file" id="pickImgFile" accept="image/*" style="display:none;" onchange="onFileImgSelected(event)" />
 <input type="file" id="pickVidFile" accept="video/*" style="display:none;" onchange="onFileVidSelected(event)" />
+<input type="file" id="pickAudFile" accept="audio/*" style="display:none;" onchange="onFileAudSelected(event)" />
 
+<!-- Modal Sources -->
 <div id="sourceModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -302,8 +307,9 @@
       <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
     <button class="obs-dlg-btn" onclick="openRunningTextModal()">📢 Running Text (Teks Berjalan Berita)</button>
-    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼 Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('audio')">🎵 Audio Input (Musik Galeri / MP3 BGM)</button>
     <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video - Full Auto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼 Image (Galeri Foto)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
     <button class="obs-dlg-btn" onclick="addDroneStream()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
@@ -312,6 +318,7 @@
   </div>
 </div>
 
+<!-- Modal Kustomisasi Running Text -->
 <div id="runningTextModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -350,6 +357,7 @@
   </div>
 </div>
 
+<!-- Modal Settings -->
 <div id="settingsModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -406,7 +414,9 @@
   let wsLiveSocket = null;
   let canvasMediaRecorder = null;
 
-  /* MASTER WEB AUDIO MIXER */
+  /* ============================================================
+     MASTER WEB AUDIO MIXER & VU-METER ENGINE
+     ============================================================ */
   let masterAudioCtx = null;
   let masterAudioDest = null;
   let micGainNode = null, mediaGainNode = null;
@@ -414,49 +424,56 @@
   let micStream = null;
 
   function initMasterAudio() {
-    if (masterAudioCtx) return;
-    masterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    masterAudioDest = masterAudioCtx.createMediaStreamDestination();
+    if (masterAudioCtx) {
+      if (masterAudioCtx.state === "suspended") masterAudioCtx.resume();
+      return;
+    }
+    try {
+      masterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterAudioDest = masterAudioCtx.createMediaStreamDestination();
 
-    micGainNode = masterAudioCtx.createGain();
-    micGainNode.gain.value = 0.85;
+      micGainNode = masterAudioCtx.createGain();
+      micGainNode.gain.value = 0.85;
 
-    mediaGainNode = masterAudioCtx.createGain();
-    mediaGainNode.gain.value = 0.80;
+      mediaGainNode = masterAudioCtx.createGain();
+      mediaGainNode.gain.value = 0.80;
 
-    micAnalyser = masterAudioCtx.createAnalyser();
-    micAnalyser.fftSize = 64;
+      micAnalyser = masterAudioCtx.createAnalyser();
+      micAnalyser.fftSize = 64;
 
-    mediaAnalyser = masterAudioCtx.createAnalyser();
-    mediaAnalyser.fftSize = 64;
+      mediaAnalyser = masterAudioCtx.createAnalyser();
+      mediaAnalyser.fftSize = 64;
 
-    micGainNode.connect(micAnalyser);
-    micAnalyser.connect(masterAudioDest);
+      micGainNode.connect(micAnalyser);
+      micAnalyser.connect(masterAudioDest);
 
-    mediaGainNode.connect(mediaAnalyser);
-    mediaAnalyser.connect(masterAudioDest);
+      mediaGainNode.connect(mediaAnalyser);
+      mediaAnalyser.connect(masterAudioDest);
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      micStream = stream;
-      const micSource = masterAudioCtx.createMediaStreamSource(stream);
-      micSource.connect(micGainNode);
-    }).catch(e => console.log("Mic notice:", e));
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        micStream = stream;
+        const micSource = masterAudioCtx.createMediaStreamSource(stream);
+        micSource.connect(micGainNode);
+      }).catch(e => console.log("Mic notice:", e));
 
-    startVUMeterLoops();
+      startVUMeterLoops();
+    } catch (e) {
+      console.log("Audio init error:", e);
+    }
   }
 
-  function connectVideoToMixer(videoEl) {
+  function connectMediaElementToMixer(mediaEl) {
     initMasterAudio();
     try {
-      if (!videoEl._audioHooked) {
-        const vidSource = masterAudioCtx.createMediaElementSource(videoEl);
-        vidSource.connect(mediaGainNode);
+      if (!mediaEl._audioHooked) {
+        const source = masterAudioCtx.createMediaElementSource(mediaEl);
+        source.connect(mediaGainNode);
         mediaGainNode.connect(masterAudioCtx.destination);
-        videoEl._audioHooked = true;
+        mediaEl._audioHooked = true;
       }
-      videoEl.muted = false;
+      mediaEl.muted = false;
     } catch (e) {
-      console.log("Video audio link:", e);
+      console.log("Media audio link:", e);
     }
   }
 
@@ -464,8 +481,8 @@
   function setMediaVolume(v) { if (mediaGainNode) mediaGainNode.gain.value = v / 100; }
 
   function startVUMeterLoops() {
-    const micData = new Uint8Array(micAnalyser.frequencyBinCount);
-    const mediaData = new Uint8Array(mediaAnalyser.frequencyBinCount);
+    const micData = new Uint8Array(micAnalyser ? micAnalyser.frequencyBinCount : 32);
+    const mediaData = new Uint8Array(mediaAnalyser ? mediaAnalyser.frequencyBinCount : 32);
 
     const micVu = document.getElementById("micVuBar");
     const micLabel = document.getElementById("micDbLabel");
@@ -474,23 +491,25 @@
 
     function renderVU() {
       requestAnimationFrame(renderVU);
-      if (!masterAudioCtx) return;
+      if (!masterAudioCtx || !micAnalyser || !mediaAnalyser) return;
 
+      // Render VU Meter Mic
       micAnalyser.getByteFrequencyData(micData);
       let sumMic = 0;
       for (let i = 0; i < micData.length; i++) sumMic += micData[i];
       let avgMic = sumMic / micData.length;
-      let pctMic = Math.min(100, Math.round((avgMic / 128) * 100));
+      let pctMic = Math.max(3, Math.min(100, Math.round((avgMic / 128) * 100)));
       micVu.style.width = pctMic + "%";
       let dbMic = avgMic > 0 ? (Math.round((avgMic / 255) * 50) - 50) : -60;
       micLabel.innerText = dbMic + " dB";
       micLabel.style.color = dbMic > -5 ? "#ef4444" : (dbMic > -18 ? "#eab308" : "#22c55e");
 
+      // Render VU Meter Media
       mediaAnalyser.getByteFrequencyData(mediaData);
       let sumMedia = 0;
       for (let i = 0; i < mediaData.length; i++) sumMedia += mediaData[i];
       let avgMedia = sumMedia / mediaData.length;
-      let pctMedia = Math.min(100, Math.round((avgMedia / 128) * 100));
+      let pctMedia = Math.max(3, Math.min(100, Math.round((avgMedia / 128) * 100)));
       mediaVu.style.width = pctMedia + "%";
       let dbMedia = avgMedia > 0 ? (Math.round((avgMedia / 255) * 50) - 50) : -60;
       mediaLabel.innerText = dbMedia + " dB";
@@ -516,7 +535,6 @@
     closeModal("settingsModal");
   }
 
-  /* FIT TO SCREEN / FULLSCREEN KANVAS */
   function fitActiveSourceToScreen() {
     if (!activeSource) return;
     activeSource.x = 0;
@@ -526,7 +544,10 @@
     updateBBoxOverlay();
   }
 
-  function renderSceneToCanvas(ctx, sourceList, isPreview = false) {
+  /* ============================================================
+     RENDER ENGINE (RUNNING TEXT DI PROGRAM & PREVIEW BERJALAN)
+     ============================================================ */
+  function renderSceneToCanvas(ctx, sourceList) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, 1280, 720);
 
@@ -558,14 +579,6 @@
         ctx.font = "bold " + (src.fontSize || 26) + "px sans-serif";
         ctx.textBaseline = "middle";
         ctx.fillText(src.text, src.x + src.scrollX, src.y + (src.h / 2));
-
-        if (isPreview) {
-          src.scrollX -= src.speed;
-          const textMetrics = ctx.measureText(src.text);
-          if (src.scrollX < -textMetrics.width) {
-            src.scrollX = src.w;
-          }
-        }
         ctx.restore();
       } else if (src.type === "drone") {
         ctx.fillStyle = "#1e293b";
@@ -579,18 +592,40 @@
     }
   }
 
-  function masterEngineLoop() {
-    renderSceneToCanvas(pCtx, scenes[currentSceneName] || [], true);
-    if (isStudioMode) {
-      renderSceneToCanvas(gCtx, programSceneSources, false);
-    } else {
-      renderSceneToCanvas(gCtx, scenes[currentSceneName] || [], false);
+  function advanceMarqueePositions(sourceList) {
+    pCtx.font = "bold 26px sans-serif";
+    for (let src of sourceList) {
+      if (src.type === "marquee" && src.visible) {
+        src.scrollX -= src.speed;
+        const textMetrics = pCtx.measureText(src.text);
+        if (src.scrollX < -textMetrics.width) {
+          src.scrollX = src.w;
+        }
+      }
     }
+  }
+
+  function masterEngineLoop() {
+    // Jalankan pergerakan teks di kedua monitor sekaligus
+    advanceMarqueePositions(scenes[currentSceneName] || []);
+    if (isStudioMode) {
+      advanceMarqueePositions(programSceneSources);
+    }
+
+    renderSceneToCanvas(pCtx, scenes[currentSceneName] || []);
+
+    if (isStudioMode) {
+      renderSceneToCanvas(gCtx, programSceneSources);
+    } else {
+      renderSceneToCanvas(gCtx, scenes[currentSceneName] || []);
+    }
+
     updateBBoxOverlay();
     requestAnimationFrame(masterEngineLoop);
   }
   requestAnimationFrame(masterEngineLoop);
 
+  /* 8-POINT BOUNDING BOX */
   const overlay = document.getElementById("previewInteractiveOverlay");
   let bboxEl = null;
 
@@ -610,7 +645,7 @@
   createBBoxDOM();
 
   function updateBBoxOverlay() {
-    if (!activeSource || !activeSource.visible) {
+    if (!activeSource || !activeSource.visible || activeSource.type === "audio") {
       bboxEl.style.display = "none";
       return;
     }
@@ -730,17 +765,14 @@
   function selectSource(src) {
     activeSource = src;
     renderSourcesUI();
-    if (src && src.type === "video") {
-      showMediaToolbar(src.element);
-    } else {
-      hideMediaToolbar();
+    if (src && (src.type === "video" || src.type === "audio")) {
+      attachMediaControls(src.element);
     }
   }
 
   function switchScene(name) {
     currentSceneName = name;
     activeSource = null;
-    hideMediaToolbar();
     renderScenesUI();
     renderSourcesUI();
   }
@@ -773,7 +805,6 @@
     if (activeSource.element && activeSource.element.pause) activeSource.element.pause();
     scenes[currentSceneName] = scenes[currentSceneName].filter(s => s !== activeSource);
     activeSource = null;
-    hideMediaToolbar();
     renderSourcesUI();
   }
 
@@ -832,6 +863,7 @@
     closeModal("sourceModal");
     if (type === "image") document.getElementById("pickImgFile").click();
     if (type === "video") document.getElementById("pickVidFile").click();
+    if (type === "audio") document.getElementById("pickAudFile").click();
   }
 
   function onFileImgSelected(e) {
@@ -840,15 +872,11 @@
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = () => {
-      // Default auto full screen atau 1280x720
       const srcObj = {
         name: "🖼️ " + file.name,
         type: "image",
         element: img,
-        x: 0,
-        y: 0,
-        w: 1280,
-        h: 720,
+        x: 0, y: 0, w: 1280, h: 720,
         visible: true
       };
       scenes[currentSceneName].push(srcObj);
@@ -865,24 +893,44 @@
     vid.loop = true;
     vid.playsInline = true;
 
-    connectVideoToMixer(vid);
+    connectMediaElementToMixer(vid);
     vid.play();
 
     vid.onloadedmetadata = () => {
-      // Otomatis Penuh / Full Screen (1280x720) saat dipilih
       const srcObj = {
         name: "🎬 " + file.name,
         type: "video",
         element: vid,
-        x: 0,
-        y: 0,
-        w: 1280,
-        h: 720,
+        x: 0, y: 0, w: 1280, h: 720,
         visible: true
       };
       scenes[currentSceneName].push(srcObj);
       selectSource(srcObj);
+      attachMediaControls(vid);
     };
+  }
+
+  function onFileAudSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const aud = new Audio();
+    aud.src = URL.createObjectURL(file);
+    aud.autoplay = true;
+    aud.loop = true;
+
+    connectMediaElementToMixer(aud);
+    aud.play();
+
+    const srcObj = {
+      name: "🎵 " + file.name,
+      type: "audio",
+      element: aud,
+      x: 0, y: 0, w: 0, h: 0,
+      visible: true
+    };
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
+    attachMediaControls(aud);
   }
 
   function initCamDevice(facing) {
@@ -951,53 +999,48 @@
     selectSource(srcObj);
   }
 
-  let currMediaVid = null;
+  /* MEDIA PLAYBACK CONTROLS */
+  let currMediaEl = null;
 
-  function showMediaToolbar(vid) {
-    currMediaVid = vid;
-    document.getElementById("mediaToolbar").style.display = "flex";
-    vid.ontimeupdate = () => {
-      if (!vid.duration) return;
-      const pct = (vid.currentTime / vid.duration) * 100;
+  function attachMediaControls(el) {
+    currMediaEl = el;
+    el.ontimeupdate = () => {
+      if (!el.duration) return;
+      const pct = (el.currentTime / el.duration) * 100;
       document.getElementById("mSeekbar").value = pct;
-      document.getElementById("mTimeLabel").innerText = formatTimeSec(vid.currentTime) + " / " + formatTimeSec(vid.duration);
+      document.getElementById("mTimeLabel").innerText = formatTimeSec(el.currentTime) + " / " + formatTimeSec(el.duration);
     };
   }
 
-  function hideMediaToolbar() {
-    document.getElementById("mediaToolbar").style.display = "none";
-    currMediaVid = null;
-  }
-
   function togglePlayMedia() {
-    if (!currMediaVid) return;
+    if (!currMediaEl) return;
     const btn = document.getElementById("mPlayBtn");
-    if (currMediaVid.paused) {
-      currMediaVid.play();
+    if (currMediaEl.paused) {
+      currMediaEl.play();
       btn.innerText = "⏸";
     } else {
-      currMediaVid.pause();
+      currMediaEl.pause();
       btn.innerText = "▶";
     }
   }
 
   function stopMedia() {
-    if (!currMediaVid) return;
-    currMediaVid.pause();
-    currMediaVid.currentTime = 0;
+    if (!currMediaEl) return;
+    currMediaEl.pause();
+    currMediaEl.currentTime = 0;
     document.getElementById("mPlayBtn").innerText = "▶";
   }
 
   function restartMedia() {
-    if (!currMediaVid) return;
-    currMediaVid.currentTime = 0;
-    currMediaVid.play();
+    if (!currMediaEl) return;
+    currMediaEl.currentTime = 0;
+    currMediaEl.play();
     document.getElementById("mPlayBtn").innerText = "⏸";
   }
 
   function onSeekMedia(val) {
-    if (!currMediaVid || !currMediaVid.duration) return;
-    currMediaVid.currentTime = (val / 100) * currMediaVid.duration;
+    if (!currMediaEl || !currMediaEl.duration) return;
+    currMediaEl.currentTime = (val / 100) * currMediaEl.duration;
   }
 
   function formatTimeSec(sec) {
@@ -1006,6 +1049,7 @@
     return "00:" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
+  /* STUDIO MODE TRANSITIONS */
   function toggleStudioMode() {
     isStudioMode = !isStudioMode;
     const progBox = document.getElementById("programMonitor");
@@ -1037,6 +1081,7 @@
     }
   }
 
+  /* BROADCAST PIPELINE */
   function pushCanvasViaTcp() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
@@ -1052,7 +1097,6 @@
       wsLiveSocket.binaryType = "arraybuffer";
 
       wsLiveSocket.onopen = () => {
-        console.log("WebSocket terhubung ke Standalone Engine!");
         canvasMediaRecorder = new MediaRecorder(stream, {
           mimeType: "video/webm;codecs=vp8,opus",
           videoBitsPerSecond: 2500000
@@ -1068,7 +1112,7 @@
         canvasMediaRecorder.start(200);
       };
     } catch (err) {
-      console.log("Recorder notice:", err);
+      console.log("Broadcast error:", err);
     }
   }
 
@@ -1086,6 +1130,7 @@
   function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
   function toggleStream() {
+    initMasterAudio();
     const btn = document.getElementById("btnStream");
     if (!isStreaming) {
       const sKey = localStorage.getItem("obs_key");
@@ -1144,9 +1189,9 @@
   window.addEventListener("DOMContentLoaded", () => {
     renderScenesUI();
     renderSourcesUI();
-    document.body.addEventListener("click", () => {
-      initMasterAudio();
-    }, { once: true });
+    // Inisialisasi Audio Engine otomatis saat pertama kali layar disentuh
+    window.addEventListener("touchstart", () => { initMasterAudio(); }, { once: true });
+    window.addEventListener("mousedown", () => { initMasterAudio(); }, { once: true });
   });
 </script>
 </body>

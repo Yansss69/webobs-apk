@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.2-FINAL-STABLE.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.3-STABLE.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.2-stable-${{ github.run_number }}"
-        name: "WebOBS Studio v5.2 FINAL STABLE (Build #${{ github.run_number }})"
-        body: "Rilis Final: Fitur Fullscreen Media Canvas (Auto & Manual Fit), Anti-FC Live Button, Standalone Embedded FFmpegKit, Logo Resmi Aktif."
-        files: package_output/WebOBS-v5.2-FINAL-STABLE.apk
+        tag_name: "v5.3-stable-${{ github.run_number }}"
+        name: "WebOBS Studio v5.3 STABLE (Build #${{ github.run_number }})"
+        body: "Perbaikan Menyeluruh: Running Text jalan di monitor Program, Audio Input Musik MP3 di Sources, VU Meter realtime aktif, Media Toolbar selalu tampil."
+        files: package_output/WebOBS-v5.3-STABLE.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
