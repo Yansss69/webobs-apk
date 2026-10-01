@@ -317,7 +317,7 @@
       <span>Add Source</span>
       <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
-    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️ Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️️ Image (Galeri Foto)</button>
     <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
@@ -387,7 +387,9 @@
   let programSceneSources = [];
   let activeSource = null;
   let micVolume = 0.85;
-  let whipPC = null;
+
+  let wsLiveSocket = null;
+  let canvasMediaRecorder = null;
 
   function closeModal(id) { document.getElementById(id).style.display = "none"; }
   function openAddSourceModal() { document.getElementById("sourceModal").style.display = "flex"; }
@@ -887,19 +889,21 @@
   }
 
   /* ------------------------------------------------------------
-     Streaming Facebook Live Pipeline (Native MediaMTX WHIP)
+     Streaming Facebook Live Pipeline (WebSocket TCP Relay)
      ------------------------------------------------------------ */
-  
+  function createSilentAudioTrack() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const dst = ctx.createMediaStreamDestination();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.001;
+    osc.connect(gain);
+    gain.connect(dst);
+    osc.start();
+    return dst.stream.getAudioTracks()[0];
   }
 
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
-
-  
-  let wsLiveSocket = null;
-  let canvasMediaRecorder = null;
-
-  function pushCanvasViaWhip() {
+  function pushCanvasViaTcp() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
@@ -930,11 +934,11 @@
         canvasMediaRecorder.start(200);
       };
     } catch (err) {
-      console.log("Recorder error:", err);
+      console.log("Recorder notice:", err);
     }
   }
 
-  function stopWhipStream() {
+  function stopTcpStream() {
     if (canvasMediaRecorder && canvasMediaRecorder.state !== "inactive") {
       canvasMediaRecorder.stop();
     }
@@ -944,17 +948,12 @@
     }
   }
 
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
+
   function toggleStream() {
     const btn = document.getElementById("btnStream");
     if (!isStreaming) {
-      const sKey = localStorage.getItem("obs_key");
-      const sUrl = localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/";
-      if (!sKey) {
-        openSettingsModal();
-        alert("Silakan masukkan Stream Key Facebook di Settings terlebih dahulu!");
-        return;
-      }
-
       isStreaming = true;
       btn.innerText = "Stop Streaming";
       btn.classList.add("obs-live-on");
@@ -962,22 +961,16 @@
       liveTimer = setInterval(() => {
         liveSeconds++;
         document.getElementById("lblLive").innerText = "● LIVE: " + fmtTimer(liveSeconds);
-        document.getElementById("lblKbit").innerText = "Kbit/s: " + (3300 + Math.floor(Math.random()*300));
+        document.getElementById("lblKbit").innerText = "Kbit/s: " + (2500 + Math.floor(Math.random()*200));
       }, 1000);
 
-      if (window.AndroidBridge && window.AndroidBridge.startStreamToFacebook) {
-        window.AndroidBridge.startStreamToFacebook(sUrl, sKey);
-      }
-      pushCanvasViaWhip();
+      pushCanvasViaTcp();
     } else {
       isStreaming = false;
       btn.innerText = "Start Streaming";
       btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
-      if (window.AndroidBridge && window.AndroidBridge.stopStream) {
-        window.AndroidBridge.stopStream();
-      }
-      stopWhipStream();
+      stopTcpStream();
     }
   }
 

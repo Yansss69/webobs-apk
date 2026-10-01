@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.6-NATIVE.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.7-RESTORED.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.6-native-${{ github.run_number }}"
-        name: "WebOBS Studio v4.6 NATIVE (Build #${{ github.run_number }})"
-        body: "Bypass Android 10+ W^X: MediaMTX native lib execution, cleartext WHIP stream, Toast status monitor."
-        files: package_output/WebOBS-v4.6-NATIVE.apk
+        tag_name: "v4.7-restored-${{ github.run_number }}"
+        name: "WebOBS Studio v4.7 RESTORED (Build #${{ github.run_number }})"
+        body: "Total Fix: Memulihkan semua tombol klik, Studio Mode lancar, dan WebSocket TCP stream pipeline aktif."
+        files: package_output/WebOBS-v4.7-RESTORED.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
