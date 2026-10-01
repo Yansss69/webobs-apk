@@ -14,7 +14,6 @@
     }
     #obs-root { display: flex; flex-direction: column; width: 100vw; height: 100vh; }
 
-    /* Top Menu Bar OBS */
     .obs-menubar {
       height: 24px; background: #1f202b; border-bottom: 1px solid #2d2f3d;
       display: flex; align-items: center; padding: 0 8px; gap: 12px; font-size: 11px; flex-shrink: 0;
@@ -22,7 +21,6 @@
     .obs-menu-item { color: #b9bbbe; cursor: pointer; }
     .obs-menu-item:hover { color: #fff; }
 
-    /* Viewport Area */
     .obs-stage-wrap {
       flex: 1; display: flex; flex-direction: column; background: #0c0d12;
       padding: 4px; gap: 4px; overflow: hidden; position: relative;
@@ -32,7 +30,6 @@
       justify-content: center; align-items: center; position: relative;
     }
 
-    /* Kotak Monitor OBS (Auto Aspect-Ratio 16:9 Anti Gepeng) */
     .obs-monitor {
       height: 100%; display: flex; flex-direction: column;
       background: #000; border: 1px solid #2d2f3d; position: relative;
@@ -56,7 +53,6 @@
       width: 100%; height: 100%; display: block; object-fit: contain; background: #000;
     }
 
-    /* OBS 8-Point Bounding Box Merah */
     .obs-bbox {
       position: absolute; border: 2px solid #ef4444; touch-action: none;
       box-sizing: border-box; pointer-events: all; z-index: 10;
@@ -74,7 +70,6 @@
     .h-ml { left: -5px; top: calc(50% - 5px); }
     .h-mr { right: -5px; top: calc(50% - 5px); }
 
-    /* Studio Mode Center Transition Bar */
     .obs-trans-bar {
       width: 72px; display: none; flex-direction: column; justify-content: center;
       gap: 6px; align-items: center; flex-shrink: 0;
@@ -85,7 +80,6 @@
     }
     .obs-btn-trans.active-t { background: #2563eb; border-color: #3b82f6; }
 
-    /* Media Playback Controls Toolbar */
     .obs-media-bar {
       height: 24px; background: #161720; border: 1px solid #2d2f3d; border-radius: 3px;
       display: none; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
@@ -94,9 +88,8 @@
     .obs-seekbar { flex: 1; height: 4px; accent-color: #5865f2; cursor: pointer; }
     .obs-media-time { font-family: monospace; font-size: 10px; color: #8e9297; }
 
-    /* Bottom Docks OBS */
     .obs-docks {
-      height: 135px; background: #1a1b24; border-top: 1px solid #2d2f3d;
+      height: 140px; background: #1a1b24; border-top: 1px solid #2d2f3d;
       display: flex; flex-shrink: 0;
     }
     .obs-dock-panel {
@@ -127,11 +120,11 @@
     }
     .obs-item-row.selected { background: #5865f2; color: #fff; font-weight: 500; }
 
-    /* Audio Mixer Dock */
-    .mixer-channel { display: flex; flex-direction: column; gap: 4px; padding: 8px; width: 100%; }
-    .mixer-label-row { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; }
+    /* Dual Audio Mixer Controls */
+    .mixer-channel { display: flex; flex-direction: column; gap: 2px; padding: 4px 8px; }
+    .mixer-label-row { display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; }
     .obs-vu-track {
-      width: 100%; height: 8px; background: #12131a; border-radius: 2px;
+      width: 100%; height: 6px; background: #12131a; border-radius: 2px;
       position: relative; overflow: hidden; border: 1px solid #2a2c3a;
     }
     .obs-vu-fill {
@@ -139,9 +132,8 @@
       background: linear-gradient(to right, #22c55e 0%, #22c55e 70%, #eab308 85%, #ef4444 100%);
       transition: width 0.05s ease-out;
     }
-    .obs-fader { width: 100%; accent-color: #5865f2; cursor: pointer; height: 14px; }
+    .obs-fader { width: 100%; accent-color: #5865f2; cursor: pointer; height: 12px; }
 
-    /* Controls Panel */
     .controls-panel { width: 135px; padding: 5px; display: flex; flex-direction: column; gap: 3px; border-right: none; }
     .obs-ctrl-btn {
       flex: 1; background: #282a3a; border: 1px solid #3a3d52; color: #dcddde;
@@ -151,13 +143,11 @@
     .obs-live-on { background: #dc2626 !important; color: #fff !important; font-weight: bold; }
     .obs-rec-on { background: #dc2626 !important; color: #fff !important; font-weight: bold; }
 
-    /* Status Bar */
     .obs-statusbar {
       height: 20px; background: #101117; border-top: 1px solid #1f202b;
       display: flex; align-items: center; padding: 0 10px; font-size: 10px; color: #72767d; gap: 16px; flex-shrink: 0;
     }
 
-    /* Modal System */
     .obs-modal-mask {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.85); z-index: 99999; align-items: center; justify-content: center;
@@ -186,7 +176,6 @@
 </head>
 <body>
 <div id="obs-root">
-  <!-- Topbar Menu -->
   <div class="obs-menubar">
     <span class="obs-menu-item">File</span>
     <span class="obs-menu-item">Edit</span>
@@ -197,10 +186,8 @@
     <span class="obs-menu-item">Help</span>
   </div>
 
-  <!-- Viewport Area -->
   <div class="obs-stage-wrap">
     <div class="obs-monitors-container" id="monitorsContainer">
-      <!-- Preview Monitor -->
       <div class="obs-monitor preview-border" id="previewMonitor">
         <div class="obs-monitor-title title-preview" id="previewHeader"><span>PREVIEW</span><span>WORKSPACE</span></div>
         <div class="obs-canvas-box" id="previewStageBox">
@@ -209,13 +196,11 @@
         </div>
       </div>
 
-      <!-- Transition Controls Bar -->
       <div class="obs-trans-bar" id="transBar">
         <button class="obs-btn-trans" onclick="execTransition('cut')">CUT</button>
         <button class="obs-btn-trans active-t" onclick="execTransition('fade')">TRANSITION</button>
       </div>
 
-      <!-- Program Monitor -->
       <div class="obs-monitor program-border" id="programMonitor" style="display:none;">
         <div class="obs-monitor-title title-program"><span>PROGRAM</span><span>LIVE ON AIR</span></div>
         <div class="obs-canvas-box">
@@ -224,7 +209,6 @@
       </div>
     </div>
 
-    <!-- Media Controls Toolbar -->
     <div class="obs-media-bar" id="mediaToolbar">
       <button class="obs-media-btn" id="mPlayBtn" onclick="togglePlayMedia()">⏸</button>
       <button class="obs-media-btn" onclick="stopMedia()">⏹</button>
@@ -234,10 +218,8 @@
     </div>
   </div>
 
-  <!-- Bottom Docks -->
   <div class="obs-docks">
-    <!-- Scenes Dock -->
-    <div class="obs-dock-panel" style="width: 140px;">
+    <div class="obs-dock-panel" style="width: 130px;">
       <div class="obs-dock-header">Scenes</div>
       <div class="obs-dock-content" id="scenesDockList"></div>
       <div class="obs-dock-footer">
@@ -247,8 +229,7 @@
       </div>
     </div>
 
-    <!-- Sources Dock -->
-    <div class="obs-dock-panel" style="width: 180px;">
+    <div class="obs-dock-panel" style="width: 170px;">
       <div class="obs-dock-header">Sources</div>
       <div class="obs-dock-content" id="sourcesDockList"></div>
       <div class="obs-dock-footer">
@@ -259,36 +240,42 @@
       </div>
     </div>
 
-    <!-- Audio Mixer Dock -->
+    <!-- Dual Audio Mixer: Mic + Media Video -->
     <div class="obs-dock-panel" style="flex: 1;">
-      <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● LIVE</span></div>
-      <div class="obs-dock-content">
+      <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● STEREO DUAL</span></div>
+      <div class="obs-dock-content" style="gap:4px;">
+        <!-- Channel 1: Mic -->
         <div class="mixer-channel">
           <div class="mixer-label-row">
             <span>Mic/Aux</span>
-            <span id="dbNumLabel" style="color:#22c55e;">-inf dB</span>
+            <span id="micDbLabel" style="color:#22c55e;">-inf dB</span>
           </div>
-          <div class="obs-vu-track">
-            <div class="obs-vu-fill" id="vuMeterBar"></div>
+          <div class="obs-vu-track"><div class="obs-vu-fill" id="micVuBar"></div></div>
+          <input type="range" class="obs-fader" min="0" max="100" value="85" oninput="setMicVolume(this.value)">
+        </div>
+        <!-- Channel 2: Media Video -->
+        <div class="mixer-channel">
+          <div class="mixer-label-row">
+            <span>Media/Video</span>
+            <span id="mediaDbLabel" style="color:#22c55e;">-inf dB</span>
           </div>
-          <input type="range" class="obs-fader" id="volFader" min="0" max="100" value="85" oninput="setMicVolume(this.value)">
+          <div class="obs-vu-track"><div class="obs-vu-fill" id="mediaVuBar"></div></div>
+          <input type="range" class="obs-fader" min="0" max="100" value="80" oninput="setMediaVolume(this.value)">
         </div>
       </div>
     </div>
 
-    <!-- Scene Transitions Dock -->
-    <div class="obs-dock-panel" style="width: 120px;">
+    <div class="obs-dock-panel" style="width: 110px;">
       <div class="obs-dock-header">Transitions</div>
-      <div style="padding: 8px; display:flex; flex-direction:column; gap:5px;">
-        <select style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" id="transType">
+      <div style="padding: 6px; display:flex; flex-direction:column; gap:4px;">
+        <select style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:2px;" id="transType">
           <option value="fade">Fade</option>
           <option value="cut">Cut</option>
         </select>
-        <input type="text" value="300 ms" style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:3px;" />
+        <input type="text" value="300 ms" style="background:#14151c; border:1px solid #303242; color:#fff; font-size:10px; padding:2px;" />
       </div>
     </div>
 
-    <!-- Controls Dock -->
     <div class="obs-dock-panel controls-panel">
       <button class="obs-ctrl-btn" id="btnStream" onclick="toggleStream()">Start Streaming</button>
       <button class="obs-ctrl-btn" id="btnRecord" onclick="toggleRecord()">Start Recording</button>
@@ -297,7 +284,6 @@
     </div>
   </div>
 
-  <!-- Status Bar -->
   <div class="obs-statusbar">
     <div class="status-badge"><span id="lblLive">● LIVE: 00:00:00</span></div>
     <div class="status-badge"><span id="lblRec">● REC: 00:00:00</span></div>
@@ -306,11 +292,9 @@
   </div>
 </div>
 
-<!-- Input File Galeri -->
 <input type="file" id="pickImgFile" accept="image/*" style="display:none;" onchange="onFileImgSelected(event)" />
 <input type="file" id="pickVidFile" accept="video/*" style="display:none;" onchange="onFileVidSelected(event)" />
 
-<!-- Modal Sources -->
 <div id="sourceModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -318,7 +302,7 @@
       <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
     <button class="obs-dlg-btn" onclick="openRunningTextModal()">📢 Running Text (Teks Berjalan Berita)</button>
-    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️ Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️️ Image (Galeri Foto)</button>
     <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
@@ -328,7 +312,6 @@
   </div>
 </div>
 
-<!-- Modal Kustomisasi Running Text -->
 <div id="runningTextModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -367,7 +350,6 @@
   </div>
 </div>
 
-<!-- Modal Settings -->
 <div id="settingsModal" class="obs-modal-mask">
   <div class="obs-dialog">
     <div class="obs-dialog-head">
@@ -405,9 +387,6 @@
 </div>
 
 <script>
-  /* ============================================================
-     OBS STUDIO CORE PIPELINE & RENDER ENGINE (60 FPS CANVAS LOOP)
-     ============================================================ */
   const pCanvas = document.getElementById("previewCanvas");
   const pCtx = pCanvas.getContext("2d");
   const gCanvas = document.getElementById("programCanvas");
@@ -420,16 +399,118 @@
   let liveTimer = null, recTimer = null;
 
   let currentSceneName = "Scene 1";
-  let scenes = {
-    "Scene 1": []
-  };
-
+  let scenes = { "Scene 1": [] };
   let programSceneSources = [];
   let activeSource = null;
-  let micVolume = 0.85;
 
   let wsLiveSocket = null;
   let canvasMediaRecorder = null;
+
+  /* ============================================================
+     MASTER WEB-AUDIO PIPELINE (DUAL MIXER: MIC + VIDEO)
+     ============================================================ */
+  let masterAudioCtx = null;
+  let masterAudioDest = null;
+  let micGainNode = null, mediaGainNode = null;
+  let micAnalyser = null, mediaAnalyser = null;
+  let micStream = null;
+
+  function initMasterAudio() {
+    if (masterAudioCtx) return;
+    masterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterAudioDest = masterAudioCtx.createMediaStreamDestination();
+
+    // Gain Nodes
+    micGainNode = masterAudioCtx.createGain();
+    micGainNode.gain.value = 0.85;
+
+    mediaGainNode = masterAudioCtx.createGain();
+    mediaGainNode.gain.value = 0.80;
+
+    // Analysers
+    micAnalyser = masterAudioCtx.createAnalyser();
+    micAnalyser.fftSize = 64;
+
+    mediaAnalyser = masterAudioCtx.createAnalyser();
+    mediaAnalyser.fftSize = 64;
+
+    // Routing
+    micGainNode.connect(micAnalyser);
+    micAnalyser.connect(masterAudioDest);
+
+    mediaGainNode.connect(mediaAnalyser);
+    mediaAnalyser.connect(masterAudioDest);
+
+    // Dapatkan suara mikrofon HP
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      micStream = stream;
+      const micSource = masterAudioCtx.createMediaStreamSource(stream);
+      micSource.connect(micGainNode);
+    }).catch(e => console.log("Mic notice:", e));
+
+    startVUMeterLoops();
+  }
+
+  function connectVideoToMixer(videoEl) {
+    initMasterAudio();
+    try {
+      if (!videoEl._audioHooked) {
+        const vidSource = masterAudioCtx.createMediaElementSource(videoEl);
+        vidSource.connect(mediaGainNode);
+        // Supaya terdengar di speaker HP juga
+        mediaGainNode.connect(masterAudioCtx.destination);
+        videoEl._audioHooked = true;
+      }
+      videoEl.muted = false; // Buka suara video karena sudah masuk ke mixer
+    } catch (e) {
+      console.log("Video audio link:", e);
+    }
+  }
+
+  function setMicVolume(v) {
+    if (micGainNode) micGainNode.gain.value = v / 100;
+  }
+  function setMediaVolume(v) {
+    if (mediaGainNode) mediaGainNode.gain.value = v / 100;
+  }
+
+  function startVUMeterLoops() {
+    const micData = new Uint8Array(micAnalyser.frequencyBinCount);
+    const mediaData = new Uint8Array(mediaAnalyser.frequencyBinCount);
+
+    const micVu = document.getElementById("micVuBar");
+    const micLabel = document.getElementById("micDbLabel");
+    const mediaVu = document.getElementById("mediaVuBar");
+    const mediaLabel = document.getElementById("mediaDbLabel");
+
+    function renderVU() {
+      requestAnimationFrame(renderVU);
+      if (!masterAudioCtx) return;
+
+      // Mic VU
+      micAnalyser.getByteFrequencyData(micData);
+      let sumMic = 0;
+      for (let i = 0; i < micData.length; i++) sumMic += micData[i];
+      let avgMic = sumMic / micData.length;
+      let pctMic = Math.min(100, Math.round((avgMic / 128) * 100));
+      micVu.style.width = pctMic + "%";
+      let dbMic = avgMic > 0 ? (Math.round((avgMic / 255) * 50) - 50) : -60;
+      micLabel.innerText = dbMic + " dB";
+      micLabel.style.color = dbMic > -5 ? "#ef4444" : (dbMic > -18 ? "#eab308" : "#22c55e");
+
+      // Media VU
+      mediaAnalyser.getByteFrequencyData(mediaData);
+      let sumMedia = 0;
+      for (let i = 0; i < mediaData.length; i++) sumMedia += mediaData[i];
+      let avgMedia = sumMedia / mediaData.length;
+      let pctMedia = Math.min(100, Math.round((avgMedia / 128) * 100));
+      mediaVu.style.width = pctMedia + "%";
+      let dbMedia = avgMedia > 0 ? (Math.round((avgMedia / 255) * 50) - 50) : -60;
+      mediaLabel.innerText = dbMedia + " dB";
+      mediaLabel.style.color = dbMedia > -5 ? "#ef4444" : (dbMedia > -18 ? "#eab308" : "#22c55e");
+    }
+    renderVU();
+  }
 
   function closeModal(id) { document.getElementById(id).style.display = "none"; }
   function openAddSourceModal() { document.getElementById("sourceModal").style.display = "flex"; }
@@ -448,9 +529,6 @@
     closeModal("settingsModal");
   }
 
-  /* ------------------------------------------------------------
-     60 FPS Master Render Loop (Dukungan Running Text Halus)
-     ------------------------------------------------------------ */
   function renderSceneToCanvas(ctx, sourceList, isPreview = false) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, 1280, 720);
@@ -471,11 +549,9 @@
         ctx.textBaseline = "middle";
         ctx.fillText(src.text, src.x + 8, src.y + (src.h / 2));
       } else if (src.type === "marquee") {
-        // Render Banner Latar Teks
         ctx.fillStyle = src.bgColor || "#dc2626";
         ctx.fillRect(src.x, src.y, src.w, src.h);
 
-        // Clip area agar teks tidak bocor keluar dari kotak banner
         ctx.save();
         ctx.beginPath();
         ctx.rect(src.x, src.y, src.w, src.h);
@@ -485,15 +561,13 @@
         ctx.font = "bold " + (src.fontSize || 26) + "px sans-serif";
         ctx.textBaseline = "middle";
 
-        // Teks Bergerak Mulus Loop
         ctx.fillText(src.text, src.x + src.scrollX, src.y + (src.h / 2));
 
-        // Hanya update posisi jalan sekali per frame render (di loop Preview)
         if (isPreview) {
           src.scrollX -= src.speed;
           const textMetrics = ctx.measureText(src.text);
           if (src.scrollX < -textMetrics.width) {
-            src.scrollX = src.w; // Reset kembali ke ujung kanan banner
+            src.scrollX = src.w;
           }
         }
         ctx.restore();
@@ -511,21 +585,16 @@
 
   function masterEngineLoop() {
     renderSceneToCanvas(pCtx, scenes[currentSceneName] || [], true);
-
     if (isStudioMode) {
       renderSceneToCanvas(gCtx, programSceneSources, false);
     } else {
       renderSceneToCanvas(gCtx, scenes[currentSceneName] || [], false);
     }
-
     updateBBoxOverlay();
     requestAnimationFrame(masterEngineLoop);
   }
   requestAnimationFrame(masterEngineLoop);
 
-  /* ------------------------------------------------------------
-     8-Point Bounding Box Presisi
-     ------------------------------------------------------------ */
   const overlay = document.getElementById("previewInteractiveOverlay");
   let bboxEl = null;
 
@@ -575,12 +644,7 @@
       initY = activeSource.y;
       initW = activeSource.w;
       initH = activeSource.h;
-
-      if (e.target.classList.contains("obs-handle")) {
-        mode = e.target.dataset.h;
-      } else {
-        mode = "drag";
-      }
+      mode = e.target.classList.contains("obs-handle") ? e.target.dataset.h : "drag";
     }
 
     function onPointerMove(e) {
@@ -638,9 +702,6 @@
     window.addEventListener("touchend", onPointerUp);
   }
 
-  /* ------------------------------------------------------------
-     Scenes & Sources Dock Logic
-     ------------------------------------------------------------ */
   function renderScenesUI() {
     const list = document.getElementById("scenesDockList");
     if (!list) return;
@@ -742,9 +803,6 @@
     }
   }
 
-  /* ------------------------------------------------------------
-     Source Add Handlers
-     ------------------------------------------------------------ */
   function applyCreateRunningText() {
     const text = document.getElementById("rtContent").value || "RUNNING TEXT";
     const speed = parseFloat(document.getElementById("rtSpeed").value) || 4;
@@ -762,9 +820,9 @@
       fontSize: fontSize,
       textColor: textColor,
       bgColor: bgColor,
-      scrollX: 1280, // Mulai dari sisi paling kanan
+      scrollX: 1280,
       x: 0,
-      y: 660, // Di baris bawah (news ticker position)
+      y: 660,
       w: 1280,
       h: 50,
       visible: true
@@ -809,8 +867,10 @@
     vid.src = URL.createObjectURL(file);
     vid.autoplay = true;
     vid.loop = true;
-    vid.muted = true;
     vid.playsInline = true;
+
+    // Hubungkan audio video ke master mixer
+    connectVideoToMixer(vid);
     vid.play();
 
     vid.onloadedmetadata = () => {
@@ -832,7 +892,7 @@
 
   function initCamDevice(facing) {
     closeModal("sourceModal");
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: true })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false })
       .then(stream => {
         const vid = document.createElement("video");
         vid.autoplay = true;
@@ -896,9 +956,6 @@
     selectSource(srcObj);
   }
 
-  /* ------------------------------------------------------------
-     Media Playback Controls Bar
-     ------------------------------------------------------------ */
   let currMediaVid = null;
 
   function showMediaToolbar(vid) {
@@ -954,9 +1011,6 @@
     return "00:" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
-  /* ------------------------------------------------------------
-     Studio Mode Dual Monitor
-     ------------------------------------------------------------ */
   function toggleStudioMode() {
     isStudioMode = !isStudioMode;
     const progBox = document.getElementById("programMonitor");
@@ -988,30 +1042,14 @@
     }
   }
 
-  /* ------------------------------------------------------------
-     Streaming Facebook Live Pipeline (Dinamis & Background Ready)
-     ------------------------------------------------------------ */
-  function createSilentAudioTrack() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const dst = ctx.createMediaStreamDestination();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.001;
-    osc.connect(gain);
-    gain.connect(dst);
-    osc.start();
-    return dst.stream.getAudioTracks()[0];
-  }
-
   function pushCanvasViaTcp() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
 
-      if (window.micAudioStream && window.micAudioStream.getAudioTracks().length > 0) {
-        stream.addTrack(window.micAudioStream.getAudioTracks()[0]);
-      } else {
-        stream.addTrack(createSilentAudioTrack());
+      // Ambil audio gabungan (Mic + Media Video) dari Master Audio Destination
+      if (masterAudioDest && masterAudioDest.stream.getAudioTracks().length > 0) {
+        stream.addTrack(masterAudioDest.stream.getAudioTracks()[0]);
       }
 
       const curKey = encodeURIComponent(localStorage.getItem("obs_key") || "");
@@ -1109,46 +1147,13 @@
     }
   }
 
-  /* ------------------------------------------------------------
-     Audio Meter & VU Bar Realtime
-     ------------------------------------------------------------ */
-  function setMicVolume(v) { micVolume = v / 100; }
-
-  function initAudioMeter() {
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      window.micAudioStream = stream;
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const vu = document.getElementById("vuMeterBar");
-      const dbLabel = document.getElementById("dbNumLabel");
-
-      function updateMeter() {
-        requestAnimationFrame(updateMeter);
-        analyser.getByteFrequencyData(data);
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) sum += data[i];
-        let avg = (sum / data.length) * micVolume;
-
-        let pct = Math.min(100, Math.round((avg / 128) * 100));
-        vu.style.width = pct + "%";
-
-        let db = avg > 0 ? (Math.round((avg / 255) * 50) - 50) : -60;
-        dbLabel.innerText = db + " dB";
-        dbLabel.style.color = db > -5 ? "#ef4444" : (db > -18 ? "#eab308" : "#22c55e");
-      }
-      updateMeter();
-    }).catch(e => console.log("Audio meter notice:", e.message));
-  }
-
   window.addEventListener("DOMContentLoaded", () => {
     renderScenesUI();
     renderSourcesUI();
-    setTimeout(initAudioMeter, 1000);
+    // Inisialisasi Audio saat interaksi pertama
+    document.body.addEventListener("click", () => {
+      initMasterAudio();
+    }, { once: true });
   });
 </script>
 </body>
