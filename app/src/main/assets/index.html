@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OBS Studio Native Mobile</title>
+  <title>WebOBS Studio Mobile</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
     html, body {
@@ -317,13 +317,53 @@
       <span>Add Source</span>
       <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
-    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️️ Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="openRunningTextModal()">📢 Running Text (Teks Berjalan Berita)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️ Image (Galeri Foto)</button>
     <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
     <button class="obs-dlg-btn" onclick="addDroneStream()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
-    <button class="obs-dlg-btn" onclick="addTextGDI()">📝 Text (GDI+ Overlay)</button>
+    <button class="obs-dlg-btn" onclick="addTextGDI()">📝 Static Text Overlay</button>
     <button class="obs-dlg-btn" onclick="addColorBg()">⬛ Color Source</button>
+  </div>
+</div>
+
+<!-- Modal Kustomisasi Running Text -->
+<div id="runningTextModal" class="obs-modal-mask">
+  <div class="obs-dialog">
+    <div class="obs-dialog-head">
+      <span>Kustomisasi Running Text</span>
+      <span style="cursor:pointer;" onclick="closeModal('runningTextModal')">✕</span>
+    </div>
+    <div class="obs-field">
+      <label>Isi Teks Berjalan</label>
+      <input type="text" id="rtContent" value="BREAKING NEWS: Selamat datang di siaran langsung kami • Jangan lupa like dan share!" />
+    </div>
+    <div style="display:flex; gap:8px;">
+      <div class="obs-field" style="flex:1;">
+        <label>Kecepatan (Speed)</label>
+        <select id="rtSpeed">
+          <option value="2">Lambat (2 px)</option>
+          <option value="4" selected>Sedang (4 px)</option>
+          <option value="7">Cepat (7 px)</option>
+        </select>
+      </div>
+      <div class="obs-field" style="flex:1;">
+        <label>Ukuran Font</label>
+        <input type="number" id="rtFontSize" value="26" />
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <div class="obs-field" style="flex:1;">
+        <label>Warna Teks</label>
+        <input type="color" id="rtTextColor" value="#ffffff" style="height:32px; padding:2px; cursor:pointer;" />
+      </div>
+      <div class="obs-field" style="flex:1;">
+        <label>Warna Latar (Banner)</label>
+        <input type="color" id="rtBgColor" value="#dc2626" style="height:32px; padding:2px; cursor:pointer;" />
+      </div>
+    </div>
+    <button class="obs-dlg-btn" style="background:#5865f2; text-align:center; font-weight:bold; margin-top:8px;" onclick="applyCreateRunningText()">Tambahkan ke Layar</button>
   </div>
 </div>
 
@@ -353,7 +393,7 @@
     <div style="display:flex; gap:8px;">
       <div class="obs-field" style="flex:1;">
         <label>Video Bitrate</label>
-        <input type="text" id="cfgBitrate" value="3500k" />
+        <input type="text" id="cfgBitrate" value="2500k" />
       </div>
       <div class="obs-field" style="flex:1;">
         <label>FPS</label>
@@ -393,6 +433,10 @@
 
   function closeModal(id) { document.getElementById(id).style.display = "none"; }
   function openAddSourceModal() { document.getElementById("sourceModal").style.display = "flex"; }
+  function openRunningTextModal() {
+    closeModal("sourceModal");
+    document.getElementById("runningTextModal").style.display = "flex";
+  }
   function openSettingsModal() {
     document.getElementById("cfgKey").value = localStorage.getItem("obs_key") || "";
     document.getElementById("cfgServer").value = localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/";
@@ -405,9 +449,9 @@
   }
 
   /* ------------------------------------------------------------
-     60 FPS Master Render Loop
+     60 FPS Master Render Loop (Dukungan Running Text Halus)
      ------------------------------------------------------------ */
-  function renderSceneToCanvas(ctx, sourceList) {
+  function renderSceneToCanvas(ctx, sourceList, isPreview = false) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, 1280, 720);
 
@@ -426,6 +470,33 @@
         ctx.font = "bold " + Math.max(16, src.h * 0.6) + "px sans-serif";
         ctx.textBaseline = "middle";
         ctx.fillText(src.text, src.x + 8, src.y + (src.h / 2));
+      } else if (src.type === "marquee") {
+        // Render Banner Latar Teks
+        ctx.fillStyle = src.bgColor || "#dc2626";
+        ctx.fillRect(src.x, src.y, src.w, src.h);
+
+        // Clip area agar teks tidak bocor keluar dari kotak banner
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(src.x, src.y, src.w, src.h);
+        ctx.clip();
+
+        ctx.fillStyle = src.textColor || "#ffffff";
+        ctx.font = "bold " + (src.fontSize || 26) + "px sans-serif";
+        ctx.textBaseline = "middle";
+
+        // Teks Bergerak Mulus Loop
+        ctx.fillText(src.text, src.x + src.scrollX, src.y + (src.h / 2));
+
+        // Hanya update posisi jalan sekali per frame render (di loop Preview)
+        if (isPreview) {
+          src.scrollX -= src.speed;
+          const textMetrics = ctx.measureText(src.text);
+          if (src.scrollX < -textMetrics.width) {
+            src.scrollX = src.w; // Reset kembali ke ujung kanan banner
+          }
+        }
+        ctx.restore();
       } else if (src.type === "drone") {
         ctx.fillStyle = "#1e293b";
         ctx.fillRect(src.x, src.y, src.w, src.h);
@@ -439,12 +510,12 @@
   }
 
   function masterEngineLoop() {
-    renderSceneToCanvas(pCtx, scenes[currentSceneName] || []);
+    renderSceneToCanvas(pCtx, scenes[currentSceneName] || [], true);
 
     if (isStudioMode) {
-      renderSceneToCanvas(gCtx, programSceneSources);
+      renderSceneToCanvas(gCtx, programSceneSources, false);
     } else {
-      renderSceneToCanvas(gCtx, scenes[currentSceneName] || []);
+      renderSceneToCanvas(gCtx, scenes[currentSceneName] || [], false);
     }
 
     updateBBoxOverlay();
@@ -674,6 +745,35 @@
   /* ------------------------------------------------------------
      Source Add Handlers
      ------------------------------------------------------------ */
+  function applyCreateRunningText() {
+    const text = document.getElementById("rtContent").value || "RUNNING TEXT";
+    const speed = parseFloat(document.getElementById("rtSpeed").value) || 4;
+    const fontSize = parseInt(document.getElementById("rtFontSize").value) || 26;
+    const textColor = document.getElementById("rtTextColor").value || "#ffffff";
+    const bgColor = document.getElementById("rtBgColor").value || "#dc2626";
+
+    closeModal("runningTextModal");
+
+    const srcObj = {
+      name: "📢 " + text.substring(0, 15) + "...",
+      type: "marquee",
+      text: text,
+      speed: speed,
+      fontSize: fontSize,
+      textColor: textColor,
+      bgColor: bgColor,
+      scrollX: 1280, // Mulai dari sisi paling kanan
+      x: 0,
+      y: 660, // Di baris bawah (news ticker position)
+      w: 1280,
+      h: 50,
+      visible: true
+    };
+
+    scenes[currentSceneName].push(srcObj);
+    selectSource(srcObj);
+  }
+
   function triggerPick(type) {
     closeModal("sourceModal");
     if (type === "image") document.getElementById("pickImgFile").click();
@@ -889,7 +989,7 @@
   }
 
   /* ------------------------------------------------------------
-     Streaming Facebook Live Pipeline (WebSocket TCP Relay)
+     Streaming Facebook Live Pipeline (Dinamis & Background Ready)
      ------------------------------------------------------------ */
   function createSilentAudioTrack() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -914,11 +1014,13 @@
         stream.addTrack(createSilentAudioTrack());
       }
 
-      wsLiveSocket = new WebSocket("ws://127.0.0.1:8080");
+      const curKey = encodeURIComponent(localStorage.getItem("obs_key") || "");
+      const curUrl = encodeURIComponent(localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/");
+      wsLiveSocket = new WebSocket("ws://127.0.0.1:8080/?url=" + curUrl + "&key=" + curKey);
       wsLiveSocket.binaryType = "arraybuffer";
 
       wsLiveSocket.onopen = () => {
-        console.log("WebSocket terhubung ke Relay!");
+        console.log("WebSocket terhubung ke Dynamic Relay!");
         canvasMediaRecorder = new MediaRecorder(stream, {
           mimeType: "video/webm;codecs=vp8,opus",
           videoBitsPerSecond: 2500000
@@ -954,6 +1056,14 @@
   function toggleStream() {
     const btn = document.getElementById("btnStream");
     if (!isStreaming) {
+      const sKey = localStorage.getItem("obs_key");
+      const sUrl = localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/";
+      if (!sKey) {
+        openSettingsModal();
+        alert("Silakan masukkan Stream Key Facebook di Settings terlebih dahulu!");
+        return;
+      }
+
       isStreaming = true;
       btn.innerText = "Stop Streaming";
       btn.classList.add("obs-live-on");
@@ -965,12 +1075,18 @@
       }, 1000);
 
       pushCanvasViaTcp();
+      if (window.AndroidBridge && window.AndroidBridge.startStreamToFacebook) {
+        window.AndroidBridge.startStreamToFacebook(sUrl, sKey);
+      }
     } else {
       isStreaming = false;
       btn.innerText = "Start Streaming";
       btn.classList.remove("obs-live-on");
       clearInterval(liveTimer);
       stopTcpStream();
+      if (window.AndroidBridge && window.AndroidBridge.stopStream) {
+        window.AndroidBridge.stopStream();
+      }
     }
   }
 

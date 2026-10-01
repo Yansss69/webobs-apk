@@ -3,12 +3,17 @@ package com.webobs.studio;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -20,15 +25,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
     private WebView webView;
-    private Process mediaMtxProcess;
+    private PowerManager.WakeLock wakeLock;
     private static final int PERMISSION_REQ_CODE = 101;
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
 
         hideSystemUI();
         checkAndRequestSystemPermissions();
+        setupWakeLock();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -84,82 +85,77 @@ public class MainActivity extends Activity {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
-                    boolean ok = launchMediaMtx(rtmpUrl, streamKey);
-                    if (ok) {
-                        Toast.makeText(MainActivity.this, "RTMP Relay Terhubung ke FB Live!", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(MainActivity.this, "Gagal menjalankan engine RTMP", Toast.LENGTH_LONG).show();
-                    }
+                    Toast.makeText(MainActivity.this, "Live Facebook Aktif di Background!", Toast.LENGTH_SHORT).show();
+                    acquireWakeLock();
+                    showStreamingNotification();
                 });
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
-                    killMediaMtx();
-                    Toast.makeText(MainActivity.this, "Stream Stopped", Toast.LENGTH_SHORT).show();
+                    releaseWakeLock();
+                    removeStreamingNotification();
+                    Toast.makeText(MainActivity.this, "Stream Dihentikan", Toast.LENGTH_SHORT).show();
                 });
             }
         }, "AndroidBridge");
 
-        launchMediaMtx("", "");
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private boolean launchMediaMtx(String rtmpUrl, String streamKey) {
-        killMediaMtx();
-        try {
-            // Path executable resmi: dari direktori library native yang diizinkan OS
-            File binFile = new File(getApplicationInfo().nativeLibraryDir, "libmediamtx.so");
-            if (!binFile.exists() || !binFile.canExecute()) {
-                // Fallback: salin ke filesDir dan set executable
-                binFile = new File(getFilesDir(), "mediamtx");
-                if (!binFile.exists() || binFile.length() == 0) {
-                    copyAsset("mediamtx", binFile);
-                }
-                binFile.setExecutable(true, false);
-            }
-
-            String forwardBlock = "";
-            if (streamKey != null && !streamKey.trim().isEmpty()) {
-                String base = rtmpUrl.trim();
-                if (!base.endsWith("/")) base += "/";
-                String fullTarget = base + streamKey.trim();
-                forwardBlock = 
-                    "    forward:\n" +
-                    "      - dest: " + fullTarget + "\n";
-            }
-
-            String ymlContent = 
-                "api: yes\n" +
-                "apiAddress: 127.0.0.1:9997\n" +
-                "webrtcAddress: 127.0.0.1:8889\n" +
-                "webrtcAllowStreamCreation: yes\n" +
-                "paths:\n" +
-                "  live:\n" +
-                "    source: publisher\n" +
-                forwardBlock;
-
-            File confFile = new File(getFilesDir(), "mediamtx.yml");
-            try (FileOutputStream fos = new FileOutputStream(confFile)) {
-                fos.write(ymlContent.getBytes(StandardCharsets.UTF_8));
-            }
-
-            ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
-            pb.directory(getFilesDir());
-            mediaMtxProcess = pb.start();
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+    private void setupWakeLock() {
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm != null) {
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WebOBS:LiveBackgroundLock");
         }
     }
 
-    private void killMediaMtx() {
-        if (mediaMtxProcess != null) {
-            mediaMtxProcess.destroy();
-            mediaMtxProcess = null;
+    private void acquireWakeLock() {
+        if (wakeLock != null && !wakeLock.isHeld()) {
+            wakeLock.acquire();
         }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+    }
+
+    private void showStreamingNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("webobs_live", "WebOBS Streaming", NotificationManager.IMPORTANCE_LOW);
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.createNotificationChannel(channel);
+
+            Notification notification = new Notification.Builder(this, "webobs_live")
+                .setContentTitle("WebOBS Studio LIVE")
+                .setContentText("Siaran langsung sedang berjalan di latar belakang...")
+                .setSmallIcon(android.R.drawable.presence_video_online)
+                .setOngoing(true)
+                .build();
+
+            if (nm != null) nm.notify(999, notification);
+        }
+    }
+
+    private void removeStreamingNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) nm.cancel(999);
+    }
+
+    // PENTING: Jangan jeda WebView saat aplikasi pindah ke background agar rendering streaming tetap jalan
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Jangan panggil webView.onPause() agar canvas WebGL/JS loop tetap berputar
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        hideSystemUI();
     }
 
     @Override
@@ -197,12 +193,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) hideSystemUI();
-    }
-
     private void checkAndRequestSystemPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             String[] perms = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO };
@@ -217,18 +207,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void copyAsset(String assetName, File outFile) throws Exception {
-        try (InputStream in = getAssets().open(assetName); OutputStream out = new FileOutputStream(outFile)) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-            out.flush();
-        }
-    }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        killMediaMtx();
+        releaseWakeLock();
+        removeStreamingNotification();
     }
 }

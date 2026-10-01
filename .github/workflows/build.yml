@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.7-RESTORED.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.8-RUNNING-BG.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.7-restored-${{ github.run_number }}"
-        name: "WebOBS Studio v4.7 RESTORED (Build #${{ github.run_number }})"
-        body: "Total Fix: Memulihkan semua tombol klik, Studio Mode lancar, dan WebSocket TCP stream pipeline aktif."
-        files: package_output/WebOBS-v4.7-RESTORED.apk
+        tag_name: "v4.8-running-bg-${{ github.run_number }}"
+        name: "WebOBS Studio v4.8 RUNNING TEXT & BG (Build #${{ github.run_number }})"
+        body: "Fitur Baru: Running Text TV/News Marquee dengan modal kustomisasi lengkap, Background Live Streaming with WakeLock & Notification."
+        files: package_output/WebOBS-v4.8-RUNNING-BG.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
