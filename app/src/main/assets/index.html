@@ -1063,7 +1063,7 @@
   }
 
   /* BROADCAST PIPELINE VIA BASE64 BRIDGE */
-  function pushCanvasViaBridge() {
+  function pushCanvasViaBridge() { try { if (wsLiveSocket) { wsLiveSocket.close(); wsLiveSocket = null; } wsLiveSocket = new WebSocket("ws://127.0.0.1:8088"); wsLiveSocket.binaryType = "arraybuffer"; } catch(e){} 
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
@@ -1081,7 +1081,7 @@
         if (e.data && e.data.size > 0 && window.AndroidBridge && window.AndroidBridge.sendChunkBase64) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            if (reader.result) {
+            if (wsLiveSocket && wsLiveSocket.readyState === WebSocket.OPEN) { wsLiveSocket.send(e.data); }
               const b64 = reader.result.split(",")[1];
               if (b64) window.AndroidBridge.sendChunkBase64(b64);
             }

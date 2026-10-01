@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.8-FIX-RTMPS.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v6.0-STANDALONE-ENGINE.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.8-rtmps-${{ github.run_number }}"
-        name: "WebOBS Studio v5.8 RTMPS Fix (Build #${{ github.run_number }})"
-        body: "Fix RTMPS Handshake: Penambahan parser -f webm eksplisit pada input pipe dan FLV RTMPS output untuk Facebook Live."
-        files: package_output/WebOBS-v5.8-FIX-RTMPS.apk
+        tag_name: "v6.0-standalone-${{ github.run_number }}"
+        name: "WebOBS Studio v6.0 STANDALONE ENGINE (Build #${{ github.run_number }})"
+        body: "Arsitektur Mandiri Murni: Menggunakan Embedded Java-WebSocket Biner Murni langsung ke FFmpegKit. Bebas Base64, Anti-Stall, Siap Siaran Facebook Live."
+        files: package_output/WebOBS-v6.0-STANDALONE-ENGINE.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
