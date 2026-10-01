@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
                     try {
                         stopLiveBroadcast();
                         releaseWakeLock();
-                        Toast.makeText(MainActivity.this, "Stream Selesai", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Stream Dihentikan", Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
                         Log.e(TAG, "stopStream error: ", e);
                     }
@@ -148,22 +148,25 @@ public class MainActivity extends Activity {
 
         String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
         if (!base.endsWith("/")) base += "/";
-        final String targetRtmp = base + (streamKey != null ? streamKey.trim() : "");
+        final String cleanKey = (streamKey != null) ? streamKey.trim() : "";
+        final String fullTarget = base + cleanKey;
 
         new Thread(() -> {
             try {
                 pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
-                
-                String cmd = "-re -i " + pipePath + " " +
-                             "-c:v libx264 -preset ultrafast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
-                             "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + targetRtmp + "\"";
+
+                // Tambahkan -f webm eksplisit pada input pipe dan protokol flv rtmps
+                String cmd = "-f webm -re -i " + pipePath + " " +
+                             "-c:v libx264 -preset ultrafast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k " +
+                             "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + fullTarget + "\"";
 
                 currentSession = FFmpegKit.executeAsync(cmd, session -> {
+                    Log.i(TAG, "FFmpeg Return Code: " + session.getReturnCode());
                     isLiveRunning = false;
                 });
 
                 pipeOutStream = new FileOutputStream(pipePath);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Terhubung!", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Mengirim Feed ke Facebook Live...", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "Broadcast error: ", e);
                 isLiveRunning = false;

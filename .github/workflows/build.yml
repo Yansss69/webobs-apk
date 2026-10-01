@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.7-ULTIMATE.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.8-FIX-RTMPS.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.7-ultimate-${{ github.run_number }}"
-        name: "WebOBS Studio v5.7 ULTIMATE (Build #${{ github.run_number }})"
-        body: "Build Stabil Final: Live Streaming langsung ke Facebook tanpa Termux, Dual Audio Mixer, Fullscreen Media, Running Text stabil."
-        files: package_output/WebOBS-v5.7-ULTIMATE.apk
+        tag_name: "v5.8-rtmps-${{ github.run_number }}"
+        name: "WebOBS Studio v5.8 RTMPS Fix (Build #${{ github.run_number }})"
+        body: "Fix RTMPS Handshake: Penambahan parser -f webm eksplisit pada input pipe dan FLV RTMPS output untuk Facebook Live."
+        files: package_output/WebOBS-v5.8-FIX-RTMPS.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
