@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.6-FINAL-STREAM.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.7-ULTIMATE.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.6-final-${{ github.run_number }}"
-        name: "WebOBS Studio v5.6 FINAL (Build #${{ github.run_number }})"
-        body: "Perbaikan Live Stream: Mengembalikan alur TCP feed non-blocking internal, aliran data lancar anti-stall ke Facebook Live."
-        files: package_output/WebOBS-v5.6-FINAL-STREAM.apk
+        tag_name: "v5.7-ultimate-${{ github.run_number }}"
+        name: "WebOBS Studio v5.7 ULTIMATE (Build #${{ github.run_number }})"
+        body: "Build Stabil Final: Live Streaming langsung ke Facebook tanpa Termux, Dual Audio Mixer, Fullscreen Media, Running Text stabil."
+        files: package_output/WebOBS-v5.7-ULTIMATE.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
