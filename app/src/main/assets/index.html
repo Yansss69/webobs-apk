@@ -215,6 +215,7 @@
       <button class="obs-media-btn" onclick="restartMedia()">⏮</button>
       <input type="range" class="obs-seekbar" id="mSeekbar" min="0" max="100" value="0" oninput="onSeekMedia(this.value)">
       <span class="obs-media-time" id="mTimeLabel">00:00:00 / 00:00:00</span>
+      <button class="obs-media-btn" style="background:#282a3a; padding:2px 6px; border-radius:2px; font-weight:bold;" onclick="fitActiveSourceToScreen()" title="Fit / Full Screen">⛶ Full Screen</button>
     </div>
   </div>
 
@@ -229,12 +230,13 @@
       </div>
     </div>
 
-    <div class="obs-dock-panel" style="width: 170px;">
+    <div class="obs-dock-panel" style="width: 175px;">
       <div class="obs-dock-header">Sources</div>
       <div class="obs-dock-content" id="sourcesDockList"></div>
       <div class="obs-dock-footer">
         <button class="obs-dock-btn" onclick="openAddSourceModal()">+</button>
         <button class="obs-dock-btn" onclick="removeActiveSource()">-</button>
+        <button class="obs-dock-btn" onclick="fitActiveSourceToScreen()" title="Full Screen Canvas">⛶</button>
         <button class="obs-dock-btn" onclick="moveLayerUp()">▲</button>
         <button class="obs-dock-btn" onclick="moveLayerDown()">▼</button>
       </div>
@@ -244,7 +246,6 @@
     <div class="obs-dock-panel" style="flex: 1;">
       <div class="obs-dock-header"><span>Audio Mixer</span><span style="color:#22c55e; font-size:8px;">● STEREO DUAL</span></div>
       <div class="obs-dock-content" style="gap:4px;">
-        <!-- Channel 1: Mic -->
         <div class="mixer-channel">
           <div class="mixer-label-row">
             <span>Mic/Aux</span>
@@ -253,7 +254,6 @@
           <div class="obs-vu-track"><div class="obs-vu-fill" id="micVuBar"></div></div>
           <input type="range" class="obs-fader" min="0" max="100" value="85" oninput="setMicVolume(this.value)">
         </div>
-        <!-- Channel 2: Media Video -->
         <div class="mixer-channel">
           <div class="mixer-label-row">
             <span>Media/Video</span>
@@ -302,8 +302,8 @@
       <span style="cursor:pointer;" onclick="closeModal('sourceModal')">✕</span>
     </div>
     <button class="obs-dlg-btn" onclick="openRunningTextModal()">📢 Running Text (Teks Berjalan Berita)</button>
-    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼️️ Image (Galeri Foto)</button>
-    <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('image')">🖼 Image (Galeri Foto)</button>
+    <button class="obs-dlg-btn" onclick="triggerPick('video')">🎬 Media Source (Galeri Video - Full Auto)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('environment')">📹 Video Capture (Kamera Belakang)</button>
     <button class="obs-dlg-btn" onclick="initCamDevice('user')">🤳 Video Capture (Kamera Depan)</button>
     <button class="obs-dlg-btn" onclick="addDroneStream()">🛸 Drone / IP Stream (RTSP / RTMP)</button>
@@ -406,9 +406,7 @@
   let wsLiveSocket = null;
   let canvasMediaRecorder = null;
 
-  /* ============================================================
-     MASTER WEB-AUDIO PIPELINE (DUAL MIXER: MIC + VIDEO)
-     ============================================================ */
+  /* MASTER WEB AUDIO MIXER */
   let masterAudioCtx = null;
   let masterAudioDest = null;
   let micGainNode = null, mediaGainNode = null;
@@ -420,28 +418,24 @@
     masterAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     masterAudioDest = masterAudioCtx.createMediaStreamDestination();
 
-    // Gain Nodes
     micGainNode = masterAudioCtx.createGain();
     micGainNode.gain.value = 0.85;
 
     mediaGainNode = masterAudioCtx.createGain();
     mediaGainNode.gain.value = 0.80;
 
-    // Analysers
     micAnalyser = masterAudioCtx.createAnalyser();
     micAnalyser.fftSize = 64;
 
     mediaAnalyser = masterAudioCtx.createAnalyser();
     mediaAnalyser.fftSize = 64;
 
-    // Routing
     micGainNode.connect(micAnalyser);
     micAnalyser.connect(masterAudioDest);
 
     mediaGainNode.connect(mediaAnalyser);
     mediaAnalyser.connect(masterAudioDest);
 
-    // Dapatkan suara mikrofon HP
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
       micStream = stream;
       const micSource = masterAudioCtx.createMediaStreamSource(stream);
@@ -457,22 +451,17 @@
       if (!videoEl._audioHooked) {
         const vidSource = masterAudioCtx.createMediaElementSource(videoEl);
         vidSource.connect(mediaGainNode);
-        // Supaya terdengar di speaker HP juga
         mediaGainNode.connect(masterAudioCtx.destination);
         videoEl._audioHooked = true;
       }
-      videoEl.muted = false; // Buka suara video karena sudah masuk ke mixer
+      videoEl.muted = false;
     } catch (e) {
       console.log("Video audio link:", e);
     }
   }
 
-  function setMicVolume(v) {
-    if (micGainNode) micGainNode.gain.value = v / 100;
-  }
-  function setMediaVolume(v) {
-    if (mediaGainNode) mediaGainNode.gain.value = v / 100;
-  }
+  function setMicVolume(v) { if (micGainNode) micGainNode.gain.value = v / 100; }
+  function setMediaVolume(v) { if (mediaGainNode) mediaGainNode.gain.value = v / 100; }
 
   function startVUMeterLoops() {
     const micData = new Uint8Array(micAnalyser.frequencyBinCount);
@@ -487,7 +476,6 @@
       requestAnimationFrame(renderVU);
       if (!masterAudioCtx) return;
 
-      // Mic VU
       micAnalyser.getByteFrequencyData(micData);
       let sumMic = 0;
       for (let i = 0; i < micData.length; i++) sumMic += micData[i];
@@ -498,7 +486,6 @@
       micLabel.innerText = dbMic + " dB";
       micLabel.style.color = dbMic > -5 ? "#ef4444" : (dbMic > -18 ? "#eab308" : "#22c55e");
 
-      // Media VU
       mediaAnalyser.getByteFrequencyData(mediaData);
       let sumMedia = 0;
       for (let i = 0; i < mediaData.length; i++) sumMedia += mediaData[i];
@@ -527,6 +514,16 @@
     localStorage.setItem("obs_key", document.getElementById("cfgKey").value);
     localStorage.setItem("obs_server", document.getElementById("cfgServer").value);
     closeModal("settingsModal");
+  }
+
+  /* FIT TO SCREEN / FULLSCREEN KANVAS */
+  function fitActiveSourceToScreen() {
+    if (!activeSource) return;
+    activeSource.x = 0;
+    activeSource.y = 0;
+    activeSource.w = 1280;
+    activeSource.h = 720;
+    updateBBoxOverlay();
   }
 
   function renderSceneToCanvas(ctx, sourceList, isPreview = false) {
@@ -560,7 +557,6 @@
         ctx.fillStyle = src.textColor || "#ffffff";
         ctx.font = "bold " + (src.fontSize || 26) + "px sans-serif";
         ctx.textBaseline = "middle";
-
         ctx.fillText(src.text, src.x + src.scrollX, src.y + (src.h / 2));
 
         if (isPreview) {
@@ -844,15 +840,15 @@
     const img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = () => {
-      const w = 640;
-      const h = Math.round((img.naturalHeight / img.naturalWidth) * 640) || 360;
+      // Default auto full screen atau 1280x720
       const srcObj = {
         name: "🖼️ " + file.name,
         type: "image",
         element: img,
-        x: Math.round((1280 - w) / 2),
-        y: Math.round((720 - h) / 2),
-        w: w, h: h,
+        x: 0,
+        y: 0,
+        w: 1280,
+        h: 720,
         visible: true
       };
       scenes[currentSceneName].push(srcObj);
@@ -869,20 +865,19 @@
     vid.loop = true;
     vid.playsInline = true;
 
-    // Hubungkan audio video ke master mixer
     connectVideoToMixer(vid);
     vid.play();
 
     vid.onloadedmetadata = () => {
-      const w = 854;
-      const h = Math.round((vid.videoHeight / vid.videoWidth) * 854) || 480;
+      // Otomatis Penuh / Full Screen (1280x720) saat dipilih
       const srcObj = {
         name: "🎬 " + file.name,
         type: "video",
         element: vid,
-        x: Math.round((1280 - w) / 2),
-        y: Math.round((720 - h) / 2),
-        w: w, h: h,
+        x: 0,
+        y: 0,
+        w: 1280,
+        h: 720,
         visible: true
       };
       scenes[currentSceneName].push(srcObj);
@@ -905,7 +900,7 @@
           name: facing === "user" ? "🤳 Front Camera" : "📹 Rear Camera",
           type: "camera",
           element: vid,
-          x: 160, y: 90, w: 960, h: 540,
+          x: 0, y: 0, w: 1280, h: 720,
           visible: true
         };
         scenes[currentSceneName].push(srcObj);
@@ -921,7 +916,7 @@
     const srcObj = {
       name: "🛸 " + u,
       type: "drone",
-      x: 160, y: 90, w: 960, h: 540,
+      x: 0, y: 0, w: 1280, h: 720,
       visible: true
     };
     scenes[currentSceneName].push(srcObj);
@@ -949,7 +944,7 @@
       name: "⬛ Color Source",
       type: "color",
       color: "#2563eb",
-      x: 100, y: 100, w: 500, h: 300,
+      x: 0, y: 0, w: 1280, h: 720,
       visible: true
     };
     scenes[currentSceneName].push(srcObj);
@@ -1047,7 +1042,6 @@
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
 
-      // Ambil audio gabungan (Mic + Media Video) dari Master Audio Destination
       if (masterAudioDest && masterAudioDest.stream.getAudioTracks().length > 0) {
         stream.addTrack(masterAudioDest.stream.getAudioTracks()[0]);
       }
@@ -1058,7 +1052,7 @@
       wsLiveSocket.binaryType = "arraybuffer";
 
       wsLiveSocket.onopen = () => {
-        console.log("WebSocket terhubung ke Dynamic Relay!");
+        console.log("WebSocket terhubung ke Standalone Engine!");
         canvasMediaRecorder = new MediaRecorder(stream, {
           mimeType: "video/webm;codecs=vp8,opus",
           videoBitsPerSecond: 2500000
@@ -1150,7 +1144,6 @@
   window.addEventListener("DOMContentLoaded", () => {
     renderScenesUI();
     renderSourcesUI();
-    // Inisialisasi Audio saat interaksi pertama
     document.body.addEventListener("click", () => {
       initMasterAudio();
     }, { once: true });
