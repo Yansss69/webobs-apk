@@ -3,9 +3,6 @@ package com.webobs.studio;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -14,6 +11,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -27,31 +26,36 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegSession;
 
-import java.io.InputStream;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity {
+    private static final String TAG = "WebOBS";
     private WebView webView;
     private PowerManager.WakeLock wakeLock;
     private static final int PERMISSION_REQ_CODE = 101;
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
 
-    // Embedded Engine Server
-    private ServerSocket bridgeServerSocket;
-    private Socket activeClientSocket;
-    private Thread serverThread;
-    private FFmpegSession currentFFmpegSession;
+    // Pipeline Streaming via Named Pipe FFmpegKit
+    private String pipePath = null;
+    private FileOutputStream pipeOutputStream = null;
+    private FFmpegSession currentFFmpegSession = null;
     private boolean isBroadcasting = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            Log.e(TAG, "Global Exception caught: " + throwable.getMessage(), throwable);
+        });
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -78,7 +82,13 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                runOnUiThread(() -> request.grant(request.getResources()));
+                runOnUiThread(() -> {
+                    try {
+                        request.grant(request.getResources());
+                    } catch (Exception e) {
+                        Log.e(TAG, "Permission request error", e);
+                    }
+                });
             }
 
             @Override
@@ -100,46 +110,47 @@ public class MainActivity extends Activity {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
-                    acquireWakeLock();
-                    showStreamingNotification();
-                    startEmbeddedFFmpegBroadcast(rtmpUrl, streamKey);
-                    Toast.makeText(MainActivity.this, "Live FB Standalone Mengudara!", Toast.LENGTH_SHORT).show();
+                    try {
+                        acquireWakeLock();
+                        startPipeBroadcast(rtmpUrl, streamKey);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error startStream: ", e);
+                        Toast.makeText(MainActivity.this, "Gagal memulai stream: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 });
+            }
+
+            @JavascriptInterface
+            public void sendChunkBase64(String base64Data) {
+                if (!isBroadcasting || pipeOutputStream == null) return;
+                try {
+                    byte[] data = Base64.decode(base64Data, Base64.NO_WRAP);
+                    pipeOutputStream.write(data);
+                    pipeOutputStream.flush();
+                } catch (Exception e) {
+                    // Pipe stream catch
+                }
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
-                    stopEmbeddedBroadcast();
-                    releaseWakeLock();
-                    removeStreamingNotification();
-                    Toast.makeText(MainActivity.this, "Stream Dihentikan", Toast.LENGTH_SHORT).show();
+                    try {
+                        stopPipeBroadcast();
+                        releaseWakeLock();
+                        Toast.makeText(MainActivity.this, "Stream Berakhir", Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error stopStream: ", e);
+                    }
                 });
             }
         }, "AndroidBridge");
 
-        // Mulai listener socket internal APK di port 8080
-        startInternalSocketServer();
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private void startInternalSocketServer() {
-        serverThread = new Thread(() -> {
-            try {
-                bridgeServerSocket = new ServerSocket(8080);
-                while (!Thread.currentThread().isInterrupted()) {
-                    Socket socket = bridgeServerSocket.accept();
-                    activeClientSocket = socket;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-        serverThread.start();
-    }
-
-    private void startEmbeddedFFmpegBroadcast(String rtmpUrl, String streamKey) {
-        stopCurrentFFmpeg();
+    private void startPipeBroadcast(String rtmpUrl, String streamKey) {
+        stopPipeBroadcast();
         isBroadcasting = true;
 
         String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
@@ -148,79 +159,69 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Menghubungkan socket lokal internal ke FFmpeg Kit
-                String cmd = "-f webm -i tcp://127.0.0.1:8080?listen=1 " +
-                             "-c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
+                // Buat Named Pipe Android resmi via FFmpegKitConfig
+                pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
+                
+                String cmd = "-re -i " + pipePath + " " +
+                             "-c:v libx264 -preset ultrafast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
                              "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + targetRtmp + "\"";
 
                 currentFFmpegSession = FFmpegKit.executeAsync(cmd, session -> {
+                    Log.i(TAG, "FFmpeg Session selesai.");
                     isBroadcasting = false;
                 });
+
+                // Buka output stream ke named pipe
+                pipeOutputStream = new FileOutputStream(pipePath);
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Dimulai!", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(TAG, "Pipe setup error: ", e);
+                isBroadcasting = false;
             }
         }).start();
     }
 
-    private void stopCurrentFFmpeg() {
-        if (currentFFmpegSession != null) {
-            FFmpegKit.cancel(currentFFmpegSession.getSessionId());
-            currentFFmpegSession = null;
-        }
+    private void stopPipeBroadcast() {
         isBroadcasting = false;
-    }
-
-    private void stopEmbeddedBroadcast() {
-        stopCurrentFFmpeg();
         try {
-            if (activeClientSocket != null) {
-                activeClientSocket.close();
-                activeClientSocket = null;
+            if (pipeOutputStream != null) {
+                pipeOutputStream.close();
+                pipeOutputStream = null;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception e) {}
+
+        try {
+            if (currentFFmpegSession != null) {
+                FFmpegKit.cancel(currentFFmpegSession.getSessionId());
+                currentFFmpegSession = null;
+            }
+        } catch (Exception e) {}
+
+        if (pipePath != null) {
+            FFmpegKitConfig.closeFFmpegPipe(pipePath);
+            pipePath = null;
         }
     }
 
     private void setupWakeLock() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (pm != null) {
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WebOBS:LiveBackgroundLock");
-        }
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WebOBS:LiveLock");
+            }
+        } catch (Exception e) {}
     }
 
     private void acquireWakeLock() {
-        if (wakeLock != null && !wakeLock.isHeld()) {
-            wakeLock.acquire();
-        }
+        try {
+            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(12 * 60 * 60 * 1000L);
+        } catch (Exception e) {}
     }
 
     private void releaseWakeLock() {
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-        }
-    }
-
-    private void showStreamingNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("webobs_live", "WebOBS Streaming", NotificationManager.IMPORTANCE_LOW);
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) nm.createNotificationChannel(channel);
-
-            Notification notification = new Notification.Builder(this, "webobs_live")
-                .setContentTitle("WebOBS Studio LIVE")
-                .setContentText("Siaran langsung mandiri sedang aktif...")
-                .setSmallIcon(android.R.drawable.presence_video_online)
-                .setOngoing(true)
-                .build();
-
-            if (nm != null) nm.notify(999, notification);
-        }
-    }
-
-    private void removeStreamingNotification() {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.cancel(999);
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception e) {}
     }
 
     @Override
@@ -266,25 +267,22 @@ public class MainActivity extends Activity {
 
     private void checkAndRequestSystemPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] perms = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO };
-            boolean needReq = false;
-            for (String p : perms) {
-                if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-                    needReq = true;
-                    break;
-                }
+            List<String> list = new ArrayList<>();
+            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                list.add(Manifest.permission.CAMERA);
             }
-            if (needReq) requestPermissions(perms, PERMISSION_REQ_CODE);
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                list.add(Manifest.permission.RECORD_AUDIO);
+            }
+            if (!list.isEmpty()) {
+                requestPermissions(list.toArray(new String[0]), PERMISSION_REQ_CODE);
+            }
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopEmbeddedBroadcast();
-        try {
-            if (bridgeServerSocket != null) bridgeServerSocket.close();
-            if (serverThread != null) serverThread.interrupt();
-        } catch (Exception e) {}
+        stopPipeBroadcast();
     }
 }

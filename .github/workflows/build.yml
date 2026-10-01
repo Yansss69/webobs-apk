@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.3-STABLE.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.4-NO-CRASH.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.3-stable-${{ github.run_number }}"
-        name: "WebOBS Studio v5.3 STABLE (Build #${{ github.run_number }})"
-        body: "Perbaikan Menyeluruh: Running Text jalan di monitor Program, Audio Input Musik MP3 di Sources, VU Meter realtime aktif, Media Toolbar selalu tampil."
-        files: package_output/WebOBS-v5.3-STABLE.apk
+        tag_name: "v5.4-no-crash-${{ github.run_number }}"
+        name: "WebOBS Studio v5.4 NO CRASH (Build #${{ github.run_number }})"
+        body: "Perbaikan Total Mental / Crash: Menggunakan Named Pipe Resmi FFmpegKit (Bypass Local TCP Socket), perlindungan crash aman di Android 13/14."
+        files: package_output/WebOBS-v5.4-NO-CRASH.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1082,6 +1082,7 @@
   }
 
   /* BROADCAST PIPELINE */
+  
   function pushCanvasViaTcp() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
@@ -1091,26 +1092,23 @@
         stream.addTrack(masterAudioDest.stream.getAudioTracks()[0]);
       }
 
-      const curKey = encodeURIComponent(localStorage.getItem("obs_key") || "");
-      const curUrl = encodeURIComponent(localStorage.getItem("obs_server") || "rtmps://live-api-s.facebook.com:443/rtmp/");
-      wsLiveSocket = new WebSocket("ws://127.0.0.1:8080/?url=" + curUrl + "&key=" + curKey);
-      wsLiveSocket.binaryType = "arraybuffer";
+      canvasMediaRecorder = new MediaRecorder(stream, {
+        mimeType: "video/webm;codecs=vp8,opus",
+        videoBitsPerSecond: 2500000
+      });
 
-      wsLiveSocket.onopen = () => {
-        canvasMediaRecorder = new MediaRecorder(stream, {
-          mimeType: "video/webm;codecs=vp8,opus",
-          videoBitsPerSecond: 2500000
-        });
-
-        canvasMediaRecorder.ondataavailable = async (e) => {
-          if (e.data && e.data.size > 0 && wsLiveSocket.readyState === WebSocket.OPEN) {
-            const buf = await e.data.arrayBuffer();
-            wsLiveSocket.send(buf);
-          }
-        };
-
-        canvasMediaRecorder.start(200);
+      canvasMediaRecorder.ondataavailable = async (e) => {
+        if (e.data && e.data.size > 0 && window.AndroidBridge && window.AndroidBridge.sendChunkBase64) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const b64 = reader.result.split(",")[1];
+            if (b64) window.AndroidBridge.sendChunkBase64(b64);
+          };
+          reader.readAsDataURL(e.data);
+        }
       };
+
+      canvasMediaRecorder.start(200);
     } catch (err) {
       console.log("Broadcast error:", err);
     }
@@ -1120,6 +1118,8 @@
     if (canvasMediaRecorder && canvasMediaRecorder.state !== "inactive") {
       canvasMediaRecorder.stop();
     }
+  }
+
     if (wsLiveSocket) {
       wsLiveSocket.close();
       wsLiveSocket = null;
