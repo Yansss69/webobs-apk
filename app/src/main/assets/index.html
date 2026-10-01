@@ -889,19 +889,17 @@
   /* ------------------------------------------------------------
      Streaming Facebook Live Pipeline (Native MediaMTX WHIP)
      ------------------------------------------------------------ */
-  function createSilentAudioTrack() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const dst = ctx.createMediaStreamDestination();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.001;
-    osc.connect(gain);
-    gain.connect(dst);
-    osc.start();
-    return dst.stream.getAudioTracks()[0];
+  
   }
 
-  async function pushCanvasViaWhip() {
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
+
+  
+  let wsLiveSocket = null;
+  let canvasMediaRecorder = null;
+
+  function pushCanvasViaWhip() {
     try {
       const targetCanvas = isStudioMode ? document.getElementById("programCanvas") : document.getElementById("previewCanvas");
       const stream = targetCanvas.captureStream(30);
@@ -912,43 +910,39 @@
         stream.addTrack(createSilentAudioTrack());
       }
 
-      whipPC = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-      });
+      wsLiveSocket = new WebSocket("ws://127.0.0.1:8080");
+      wsLiveSocket.binaryType = "arraybuffer";
 
-      stream.getTracks().forEach(track => whipPC.addTrack(track, stream));
+      wsLiveSocket.onopen = () => {
+        console.log("WebSocket terhubung ke Relay!");
+        canvasMediaRecorder = new MediaRecorder(stream, {
+          mimeType: "video/webm;codecs=vp8,opus",
+          videoBitsPerSecond: 2500000
+        });
 
-      const offer = await whipPC.createOffer();
-      await whipPC.setLocalDescription(offer);
+        canvasMediaRecorder.ondataavailable = async (e) => {
+          if (e.data && e.data.size > 0 && wsLiveSocket.readyState === WebSocket.OPEN) {
+            const buf = await e.data.arrayBuffer();
+            wsLiveSocket.send(buf);
+          }
+        };
 
-      const resp = await fetch("http://127.0.0.1:8889/live/whip", {
-        method: "POST",
-        headers: { "Content-Type": "application/sdp" },
-        body: offer.sdp
-      });
-
-      if (resp.ok) {
-        const answerSdp = await resp.text();
-        await whipPC.setRemoteDescription(new RTCSessionDescription({
-          type: "answer",
-          sdp: answerSdp
-        }));
-        console.log("WHIP: Connected to MediaMTX!");
-      }
-    } catch (e) {
-      console.log("WHIP connect notice:", e);
+        canvasMediaRecorder.start(200);
+      };
+    } catch (err) {
+      console.log("Recorder error:", err);
     }
   }
 
   function stopWhipStream() {
-    if (whipPC) {
-      whipPC.close();
-      whipPC = null;
+    if (canvasMediaRecorder && canvasMediaRecorder.state !== "inactive") {
+      canvasMediaRecorder.stop();
+    }
+    if (wsLiveSocket) {
+      wsLiveSocket.close();
+      wsLiveSocket = null;
     }
   }
-
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function fmtTimer(s) { return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor((s%3600)/60)) + ":" + pad2(s%60); }
 
   function toggleStream() {
     const btn = document.getElementById("btnStream");
