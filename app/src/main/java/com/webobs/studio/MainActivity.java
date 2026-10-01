@@ -26,10 +26,12 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
-import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegSession;
 
-import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,8 +43,10 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
 
-    private String pipePath = null;
-    private FileOutputStream pipeOutputStream = null;
+    private ServerSocket bridgeServerSocket;
+    private Socket dataClientSocket;
+    private OutputStream dataOutputStream;
+    private Thread serverThread;
     private FFmpegSession currentFFmpegSession = null;
     private boolean isBroadcasting = false;
 
@@ -110,7 +114,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     try {
                         acquireWakeLock();
-                        startPipeBroadcast(rtmpUrl, streamKey);
+                        startBroadcastPipeline(rtmpUrl, streamKey);
                     } catch (Exception e) {
                         Log.e(TAG, "Error startStream: ", e);
                     }
@@ -119,21 +123,23 @@ public class MainActivity extends Activity {
 
             @JavascriptInterface
             public void sendChunkBase64(String base64Data) {
-                if (!isBroadcasting || pipeOutputStream == null) return;
+                if (!isBroadcasting || dataOutputStream == null) return;
                 try {
                     byte[] data = Base64.decode(base64Data, Base64.NO_WRAP);
-                    pipeOutputStream.write(data);
-                    pipeOutputStream.flush();
-                } catch (Exception e) {}
+                    dataOutputStream.write(data);
+                    dataOutputStream.flush();
+                } catch (Exception e) {
+                    // silent ignore dropped frame
+                }
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
                     try {
-                        stopPipeBroadcast();
+                        stopBroadcastPipeline();
                         releaseWakeLock();
-                        Toast.makeText(MainActivity.this, "Stream Berakhir", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Stream Dihentikan", Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
                         Log.e(TAG, "Error stopStream: ", e);
                     }
@@ -141,11 +147,28 @@ public class MainActivity extends Activity {
             }
         }, "AndroidBridge");
 
+        startLocalBridgeServer();
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private void startPipeBroadcast(String rtmpUrl, String streamKey) {
-        stopPipeBroadcast();
+    private void startLocalBridgeServer() {
+        serverThread = new Thread(() -> {
+            try {
+                bridgeServerSocket = new ServerSocket(8554);
+                while (!Thread.currentThread().isInterrupted()) {
+                    Socket socket = bridgeServerSocket.accept();
+                    dataClientSocket = socket;
+                    dataOutputStream = socket.getOutputStream();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Server socket error: ", e);
+            }
+        });
+        serverThread.start();
+    }
+
+    private void startBroadcastPipeline(String rtmpUrl, String streamKey) {
+        stopCurrentFFmpeg();
         isBroadcasting = true;
 
         String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
@@ -154,44 +177,56 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
-                String cmd = "-re -i " + pipePath + " " +
-                             "-c:v libx264 -preset ultrafast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
+                // Menghubungkan client socket lokal ke FFmpeg
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(300);
+                        Socket feeder = new Socket("127.0.0.1", 8554);
+                    } catch (Exception ignored) {}
+                }).start();
+
+                // FFmpegKit menarik stream dari port internal 8554 dan meng-encode langsung ke Facebook
+                String cmd = "-re -f webm -i tcp://127.0.0.1:8554?listen=1 " +
+                             "-c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
                              "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + targetRtmp + "\"";
 
                 currentFFmpegSession = FFmpegKit.executeAsync(cmd, session -> {
+                    Log.i(TAG, "FFmpeg Session berakhir");
                     isBroadcasting = false;
                 });
 
-                pipeOutputStream = new FileOutputStream(pipePath);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Dimulai!", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
-                Log.e(TAG, "Pipe setup error: ", e);
+                Log.e(TAG, "Broadcast start error: ", e);
                 isBroadcasting = false;
             }
         }).start();
     }
 
-    private void stopPipeBroadcast() {
-        isBroadcasting = false;
-        try {
-            if (pipeOutputStream != null) {
-                pipeOutputStream.close();
-                pipeOutputStream = null;
-            }
-        } catch (Exception e) {}
-
+    private void stopCurrentFFmpeg() {
         try {
             if (currentFFmpegSession != null) {
                 FFmpegKit.cancel(currentFFmpegSession.getSessionId());
                 currentFFmpegSession = null;
             }
-        } catch (Exception e) {}
-
-        if (pipePath != null) {
-            FFmpegKitConfig.closeFFmpegPipe(pipePath);
-            pipePath = null;
+        } catch (Exception e) {
+            Log.e(TAG, "Stop FFmpeg error", e);
         }
+    }
+
+    private void stopBroadcastPipeline() {
+        isBroadcasting = false;
+        stopCurrentFFmpeg();
+        try {
+            if (dataOutputStream != null) {
+                dataOutputStream.close();
+                dataOutputStream = null;
+            }
+            if (dataClientSocket != null) {
+                dataClientSocket.close();
+                dataClientSocket = null;
+            }
+        } catch (Exception ignored) {}
     }
 
     private void setupWakeLock() {
@@ -200,19 +235,19 @@ public class MainActivity extends Activity {
             if (pm != null) {
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WebOBS:LiveLock");
             }
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
     }
 
     private void acquireWakeLock() {
         try {
             if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(12 * 60 * 60 * 1000L);
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
     }
 
     private void releaseWakeLock() {
         try {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -274,6 +309,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopPipeBroadcast();
+        stopBroadcastPipeline();
+        try {
+            if (bridgeServerSocket != null) bridgeServerSocket.close();
+            if (serverThread != null) serverThread.interrupt();
+        } catch (Exception ignored) {}
     }
 }

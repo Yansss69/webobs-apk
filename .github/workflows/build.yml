@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.5-MASTER.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.6-FINAL-STREAM.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v5.5-master-${{ github.run_number }}"
-        name: "WebOBS Studio v5.5 MASTER (Build #${{ github.run_number }})"
-        body: "Total Clean Fix: Menghapus semua sintaks error JavaScript, memulihkan responsivitas tombol 100%, Named Pipe FFmpeg anti-crash."
-        files: package_output/WebOBS-v5.5-MASTER.apk
+        tag_name: "v5.6-final-${{ github.run_number }}"
+        name: "WebOBS Studio v5.6 FINAL (Build #${{ github.run_number }})"
+        body: "Perbaikan Live Stream: Mengembalikan alur TCP feed non-blocking internal, aliran data lancar anti-stall ke Facebook Live."
+        files: package_output/WebOBS-v5.6-FINAL-STREAM.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
