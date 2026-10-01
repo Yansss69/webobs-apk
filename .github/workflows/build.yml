@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.9-AUDIO-MIXER.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v5.0-STANDALONE.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.9-audio-mixer-${{ github.run_number }}"
-        name: "WebOBS Studio v4.9 DUAL AUDIO MIXER (Build #${{ github.run_number }})"
-        body: "Stereo Audio Mixer: Mic + Video Gallery Audio Routing, Independent VU Meters, Zero-Mute Live."
-        files: package_output/WebOBS-v4.9-AUDIO-MIXER.apk
+        tag_name: "v5.0-standalone-${{ github.run_number }}"
+        name: "WebOBS Studio v5.0 STANDALONE (Build #${{ github.run_number }})"
+        body: "FULL STANDALONE: Embedded FFmpegKit Engine di dalam APK. Bebas dari Termux, siap dibagikan ke semua orang."
+        files: package_output/WebOBS-v5.0-STANDALONE.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

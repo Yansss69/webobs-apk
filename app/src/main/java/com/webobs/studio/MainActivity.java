@@ -26,12 +26,27 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.FFmpegSession;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+
 public class MainActivity extends Activity {
     private WebView webView;
     private PowerManager.WakeLock wakeLock;
     private static final int PERMISSION_REQ_CODE = 101;
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
+
+    // Embedded Engine Server
+    private ServerSocket bridgeServerSocket;
+    private Socket activeClientSocket;
+    private Thread serverThread;
+    private FFmpegSession currentFFmpegSession;
+    private boolean isBroadcasting = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -85,15 +100,17 @@ public class MainActivity extends Activity {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Live Facebook Aktif di Background!", Toast.LENGTH_SHORT).show();
                     acquireWakeLock();
                     showStreamingNotification();
+                    startEmbeddedFFmpegBroadcast(rtmpUrl, streamKey);
+                    Toast.makeText(MainActivity.this, "Live FB Standalone Mengudara!", Toast.LENGTH_SHORT).show();
                 });
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
+                    stopEmbeddedBroadcast();
                     releaseWakeLock();
                     removeStreamingNotification();
                     Toast.makeText(MainActivity.this, "Stream Dihentikan", Toast.LENGTH_SHORT).show();
@@ -101,7 +118,68 @@ public class MainActivity extends Activity {
             }
         }, "AndroidBridge");
 
+        // Mulai listener socket internal APK di port 8080
+        startInternalSocketServer();
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void startInternalSocketServer() {
+        serverThread = new Thread(() -> {
+            try {
+                bridgeServerSocket = new ServerSocket(8080);
+                while (!Thread.currentThread().isInterrupted()) {
+                    Socket socket = bridgeServerSocket.accept();
+                    activeClientSocket = socket;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        serverThread.start();
+    }
+
+    private void startEmbeddedFFmpegBroadcast(String rtmpUrl, String streamKey) {
+        stopCurrentFFmpeg();
+        isBroadcasting = true;
+
+        String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
+        if (!base.endsWith("/")) base += "/";
+        final String targetRtmp = base + (streamKey != null ? streamKey.trim() : "");
+
+        new Thread(() -> {
+            try {
+                // Menghubungkan socket lokal internal ke FFmpeg Kit
+                String cmd = "-f webm -i tcp://127.0.0.1:8080?listen=1 " +
+                             "-c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k " +
+                             "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv \"" + targetRtmp + "\"";
+
+                currentFFmpegSession = FFmpegKit.executeAsync(cmd, session -> {
+                    isBroadcasting = false;
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void stopCurrentFFmpeg() {
+        if (currentFFmpegSession != null) {
+            FFmpegKit.cancel(currentFFmpegSession.getSessionId());
+            currentFFmpegSession = null;
+        }
+        isBroadcasting = false;
+    }
+
+    private void stopEmbeddedBroadcast() {
+        stopCurrentFFmpeg();
+        try {
+            if (activeClientSocket != null) {
+                activeClientSocket.close();
+                activeClientSocket = null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void setupWakeLock() {
@@ -131,7 +209,7 @@ public class MainActivity extends Activity {
 
             Notification notification = new Notification.Builder(this, "webobs_live")
                 .setContentTitle("WebOBS Studio LIVE")
-                .setContentText("Siaran langsung sedang berjalan di latar belakang...")
+                .setContentText("Siaran langsung mandiri sedang aktif...")
                 .setSmallIcon(android.R.drawable.presence_video_online)
                 .setOngoing(true)
                 .build();
@@ -143,13 +221,6 @@ public class MainActivity extends Activity {
     private void removeStreamingNotification() {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(999);
-    }
-
-    // PENTING: Jangan jeda WebView saat aplikasi pindah ke background agar rendering streaming tetap jalan
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Jangan panggil webView.onPause() agar canvas WebGL/JS loop tetap berputar
     }
 
     @Override
@@ -210,7 +281,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        releaseWakeLock();
-        removeStreamingNotification();
+        stopEmbeddedBroadcast();
+        try {
+            if (bridgeServerSocket != null) bridgeServerSocket.close();
+            if (serverThread != null) serverThread.interrupt();
+        } catch (Exception e) {}
     }
 }
