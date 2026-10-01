@@ -33,14 +33,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.5-DIRECT-FB.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v4.6-NATIVE.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v4.5-direct-fb-${{ github.run_number }}"
-        name: "WebOBS Studio v4.5 DIRECT FB (Build #${{ github.run_number }})"
-        body: "Fix FB Live Network: CleartextTraffic enabled, Full RTMPS Path Forwarding without hash fragment, WebRTC WHIP unblocked."
-        files: package_output/WebOBS-v4.5-DIRECT-FB.apk
+        tag_name: "v4.6-native-${{ github.run_number }}"
+        name: "WebOBS Studio v4.6 NATIVE (Build #${{ github.run_number }})"
+        body: "Bypass Android 10+ W^X: MediaMTX native lib execution, cleartext WHIP stream, Toast status monitor."
+        files: package_output/WebOBS-v4.6-NATIVE.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

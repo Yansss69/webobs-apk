@@ -56,7 +56,6 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setDatabaseEnabled(true);
-        // Izinkan WebView memanggil localhost tanpa proteksi CORS/Mixed Content
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         webView.setWebViewClient(new WebViewClient());
@@ -85,72 +84,78 @@ public class MainActivity extends Activity {
             @JavascriptInterface
             public void startStreamToFacebook(String rtmpUrl, String streamKey) {
                 runOnUiThread(() -> {
-                    startNativeMediaMtxForwarder(rtmpUrl, streamKey);
-                    Toast.makeText(MainActivity.this, "Connecting to Facebook Live (RTMPS)...", Toast.LENGTH_SHORT).show();
+                    boolean ok = launchMediaMtx(rtmpUrl, streamKey);
+                    if (ok) {
+                        Toast.makeText(MainActivity.this, "RTMP Relay Terhubung ke FB Live!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Gagal menjalankan engine RTMP", Toast.LENGTH_LONG).show();
+                    }
                 });
             }
 
             @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
-                    stopMediaMtx();
+                    killMediaMtx();
                     Toast.makeText(MainActivity.this, "Stream Stopped", Toast.LENGTH_SHORT).show();
                 });
             }
         }, "AndroidBridge");
 
-        startNativeMediaMtxForwarder("", "");
+        launchMediaMtx("", "");
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private void startNativeMediaMtxForwarder(String rtmpUrl, String streamKey) {
-        new Thread(() -> {
-            try {
-                stopMediaMtx();
-
-                File binFile = new File(getFilesDir(), "mediamtx");
+    private boolean launchMediaMtx(String rtmpUrl, String streamKey) {
+        killMediaMtx();
+        try {
+            // Path executable resmi: dari direktori library native yang diizinkan OS
+            File binFile = new File(getApplicationInfo().nativeLibraryDir, "libmediamtx.so");
+            if (!binFile.exists() || !binFile.canExecute()) {
+                // Fallback: salin ke filesDir dan set executable
+                binFile = new File(getFilesDir(), "mediamtx");
                 if (!binFile.exists() || binFile.length() == 0) {
                     copyAsset("mediamtx", binFile);
-                    binFile.setExecutable(true, false);
                 }
-
-                String forwardDirect = "";
-                if (streamKey != null && !streamKey.trim().isEmpty()) {
-                    String base = rtmpUrl.trim();
-                    if (!base.endsWith("/")) base += "/";
-                    String fullRtmps = base + streamKey.trim();
-
-                    // Format forward resmi MediaMTX untuk target RTMP/RTMPS tunggal
-                    forwardDirect = 
-                        "    forward:\n" +
-                        "      - dest: " + fullRtmps + "\n";
-                }
-
-                String ymlContent = 
-                    "api: yes\n" +
-                    "apiAddress: 127.0.0.1:9997\n" +
-                    "webrtcAddress: 127.0.0.1:8889\n" +
-                    "webrtcAllowStreamCreation: yes\n" +
-                    "paths:\n" +
-                    "  live:\n" +
-                    "    source: publisher\n" +
-                    forwardDirect;
-
-                File confFile = new File(getFilesDir(), "mediamtx.yml");
-                try (FileOutputStream fos = new FileOutputStream(confFile)) {
-                    fos.write(ymlContent.getBytes(StandardCharsets.UTF_8));
-                }
-
-                ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
-                pb.directory(getFilesDir());
-                mediaMtxProcess = pb.start();
-            } catch (Exception e) {
-                e.printStackTrace();
+                binFile.setExecutable(true, false);
             }
-        }).start();
+
+            String forwardBlock = "";
+            if (streamKey != null && !streamKey.trim().isEmpty()) {
+                String base = rtmpUrl.trim();
+                if (!base.endsWith("/")) base += "/";
+                String fullTarget = base + streamKey.trim();
+                forwardBlock = 
+                    "    forward:\n" +
+                    "      - dest: " + fullTarget + "\n";
+            }
+
+            String ymlContent = 
+                "api: yes\n" +
+                "apiAddress: 127.0.0.1:9997\n" +
+                "webrtcAddress: 127.0.0.1:8889\n" +
+                "webrtcAllowStreamCreation: yes\n" +
+                "paths:\n" +
+                "  live:\n" +
+                "    source: publisher\n" +
+                forwardBlock;
+
+            File confFile = new File(getFilesDir(), "mediamtx.yml");
+            try (FileOutputStream fos = new FileOutputStream(confFile)) {
+                fos.write(ymlContent.getBytes(StandardCharsets.UTF_8));
+            }
+
+            ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath(), confFile.getAbsolutePath());
+            pb.directory(getFilesDir());
+            mediaMtxProcess = pb.start();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
-    private void stopMediaMtx() {
+    private void killMediaMtx() {
         if (mediaMtxProcess != null) {
             mediaMtxProcess.destroy();
             mediaMtxProcess = null;
@@ -224,6 +229,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopMediaMtx();
+        killMediaMtx();
     }
 }
