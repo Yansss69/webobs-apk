@@ -11,7 +11,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -33,14 +32,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-FIXED-SEGAR.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v7-CLEAN.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "fixed-segar-${{ github.run_number }}"
-        name: "WebOBS Studio FIXED SEGAR (Build #${{ github.run_number }})"
-        body: "Perbaikan total JavaScript freeze dan touch event responsiveness."
-        files: package_output/WebOBS-FIXED-SEGAR.apk
+        tag_name: "v7.0-clean-1791038153"
+        name: "WebOBS Studio v7.0 CLEAN"
+        body: "Build segar perbaikan antarmuka responsif dan aktifasi studio mode."
+        files: package_output/WebOBS-v7-CLEAN.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
