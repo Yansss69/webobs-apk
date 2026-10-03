@@ -172,6 +172,24 @@
       border-radius: 3px; font-size: 11px;
     }
   </style>
+
+<style id="touch-fix-style">
+  * {
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+  }
+  button, input, select, .btn, .control-btn, .source-item, .scene-item, .fader-thumb {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+  /* Pastikan panel bawah selalu di layer paling atas agar tidak tertutup preview */
+  .bottom-panels, .audio-mixer, .controls-panel, .sources-panel, .scenes-panel {
+    position: relative !important;
+    z-index: 9999 !important;
+  }
+</style>
+
 </head>
 <body>
 <div id="obs-root">
