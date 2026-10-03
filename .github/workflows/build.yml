@@ -32,14 +32,14 @@ jobs:
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v7-CLEAN.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-V8-LIVE-OK.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v7.0-clean-1791038153"
-        name: "WebOBS Studio v7.0 CLEAN"
-        body: "Build segar perbaikan antarmuka responsif dan aktifasi studio mode."
-        files: package_output/WebOBS-v7-CLEAN.apk
+        tag_name: "v8.0-live-ok"
+        name: "WebOBS Studio v8.0 LIVE OK"
+        body: "Engine streaming diperbarui ke TCP localhost non-blocking buffer untuk Facebook Live."
+        files: package_output/WebOBS-V8-LIVE-OK.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

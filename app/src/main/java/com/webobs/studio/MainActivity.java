@@ -26,11 +26,12 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
-import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegSession;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,10 +43,12 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
 
-    private String pipePath = null;
-    private FileOutputStream pipeOutStream = null;
+    private ServerSocket localServer = null;
+    private Socket clientSocket = null;
+    private OutputStream clientOut = null;
     private FFmpegSession currentSession = null;
     private volatile boolean isLiveRunning = false;
+    private static final int TCP_PORT = 9998;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -118,11 +121,11 @@ public class MainActivity extends Activity {
 
             @JavascriptInterface
             public void sendChunkBase64(String base64Data) {
-                if (!isLiveRunning || pipeOutStream == null) return;
+                if (!isLiveRunning || clientOut == null) return;
                 try {
                     byte[] data = Base64.decode(base64Data, Base64.NO_WRAP);
-                    pipeOutStream.write(data);
-                    pipeOutStream.flush();
+                    clientOut.write(data);
+                    clientOut.flush();
                 } catch (Exception ignored) {}
             }
 
@@ -149,29 +152,33 @@ public class MainActivity extends Activity {
 
         String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
         if (!base.endsWith("/")) base += "/";
-        final String cleanKey = (streamKey != null) ? streamKey.trim() : "";
-        final String fullTarget = base + cleanKey;
+        final String fullTarget = base + ((streamKey != null) ? streamKey.trim() : "");
 
         new Thread(() -> {
             try {
-                pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
+                if (localServer != null && !localServer.isClosed()) {
+                    localServer.close();
+                }
+                localServer = new ServerSocket(TCP_PORT);
+                localServer.setReuseAddress(true);
 
-                // Parameter FFmpeg untuk koneksi aman ke Facebook Live (RTMPS port 443)
-                String cmd = "-analyzeduration 2147483647 -probesize 2147483647 -f webm -re -i " + pipePath + " " +
+                // FFmpeg terhubung ke localhost TCP yang stabil tanpa pipe stalling
+                String cmd = "-analyzeduration 2000000 -probesize 2000000 -f webm -i tcp://127.0.0.1:" + TCP_PORT + " " +
                              "-c:v libx264 -preset ultrafast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k " +
                              "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 " +
                              "-flvflags no_duration_filesize -f flv \"" + fullTarget + "\"";
-
-                pipeOutStream = new FileOutputStream(pipePath);
 
                 currentSession = FFmpegKit.executeAsync(cmd, session -> {
                     Log.i(TAG, "FFmpeg Return Code: " + session.getReturnCode());
                     isLiveRunning = false;
                 });
 
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Menghubungkan ke Facebook...", Toast.LENGTH_SHORT).show());
+                clientSocket = localServer.accept();
+                clientOut = clientSocket.getOutputStream();
+
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Terhubung!", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
-                Log.e(TAG, "Broadcast error: ", e);
+                Log.e(TAG, "Live server error: ", e);
                 isLiveRunning = false;
             }
         }).start();
@@ -180,9 +187,17 @@ public class MainActivity extends Activity {
     private void stopLiveBroadcast() {
         isLiveRunning = false;
         try {
-            if (pipeOutStream != null) {
-                pipeOutStream.close();
-                pipeOutStream = null;
+            if (clientOut != null) {
+                clientOut.close();
+                clientOut = null;
+            }
+            if (clientSocket != null) {
+                clientSocket.close();
+                clientSocket = null;
+            }
+            if (localServer != null) {
+                localServer.close();
+                localServer = null;
             }
         } catch (Exception ignored) {}
 
@@ -192,11 +207,6 @@ public class MainActivity extends Activity {
                 currentSession = null;
             }
         } catch (Exception ignored) {}
-
-        if (pipePath != null) {
-            FFmpegKitConfig.closeFFmpegPipe(pipePath);
-            pipePath = null;
-        }
     }
 
     private void setupWakeLock() {
