@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -28,13 +29,8 @@ import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFmpegKitConfig;
 import com.arthenica.ffmpegkit.FFmpegSession;
 
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
-
+import java.io.File;
 import java.io.FileOutputStream;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,7 +42,6 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQ_CODE = 102;
     private ValueCallback<Uri[]> uploadMessageAboveL;
 
-    private EmbeddedStreamServer wsServer = null;
     private String pipePath = null;
     private FileOutputStream pipeOutStream = null;
     private FFmpegSession currentSession = null;
@@ -69,9 +64,6 @@ public class MainActivity extends Activity {
         hideSystemUI();
         checkAndRequestSystemPermissions();
         setupWakeLock();
-
-        // Start Local WebSocket Server di port 8088
-        startInternalWebSocketServer();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -125,6 +117,16 @@ public class MainActivity extends Activity {
             }
 
             @JavascriptInterface
+            public void sendChunkBase64(String base64Data) {
+                if (!isLiveRunning || pipeOutStream == null) return;
+                try {
+                    byte[] data = Base64.decode(base64Data, Base64.NO_WRAP);
+                    pipeOutStream.write(data);
+                    pipeOutStream.flush();
+                } catch (Exception ignored) {}
+            }
+
+            @JavascriptInterface
             public void stopStream() {
                 runOnUiThread(() -> {
                     try {
@@ -141,77 +143,33 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
-    private void startInternalWebSocketServer() {
-        try {
-            wsServer = new EmbeddedStreamServer(new InetSocketAddress(8088));
-            wsServer.setReuseAddr(true);
-            wsServer.start();
-            Log.i(TAG, "Embedded WebSocket Server berjalan di port 8088");
-        } catch (Exception e) {
-            Log.e(TAG, "Gagal start WS Server: ", e);
-        }
-    }
-
-    private class EmbeddedStreamServer extends WebSocketServer {
-        public EmbeddedStreamServer(InetSocketAddress address) {
-            super(address);
-        }
-
-        @Override
-        public void onOpen(WebSocket conn, ClientHandshake handshake) {
-            Log.i(TAG, "Koneksi biner WebSocket dari WebView terhubung!");
-        }
-
-        @Override
-        public void onClose(WebSocket conn, int code, String reason, boolean remote) {}
-
-        @Override
-        public void onMessage(WebSocket conn, String message) {}
-
-        @Override
-        public void onMessage(WebSocket conn, ByteBuffer bytes) {
-            // Menerima data biner video murni langsung dari WebView tanpa Base64!
-            if (!isLiveRunning || pipeOutStream == null) return;
-            try {
-                byte[] raw = new byte[bytes.remaining()];
-                bytes.get(raw);
-                pipeOutStream.write(raw);
-                pipeOutStream.flush();
-            } catch (Exception ignored) {}
-        }
-
-        @Override
-        public void onError(WebSocket conn, Exception ex) {}
-
-        @Override
-        public void onStart() {}
-    }
-
     private void startLiveBroadcast(String rtmpUrl, String streamKey) {
         stopLiveBroadcast();
         isLiveRunning = true;
 
         String base = (rtmpUrl != null && !rtmpUrl.trim().isEmpty()) ? rtmpUrl.trim() : "rtmps://live-api-s.facebook.com:443/rtmp/";
         if (!base.endsWith("/")) base += "/";
-        final String fullTarget = base + ((streamKey != null) ? streamKey.trim() : "");
+        final String cleanKey = (streamKey != null) ? streamKey.trim() : "";
+        final String fullTarget = base + cleanKey;
 
         new Thread(() -> {
             try {
                 pipePath = FFmpegKitConfig.registerNewFFmpegPipe(MainActivity.this);
 
-                // Command FFmpeg profesional untuk transmisi RTMPS Facebook Live
-                String cmd = "-f webm -re -i " + pipePath + " " +
+                // Parameter FFmpeg untuk koneksi aman ke Facebook Live (RTMPS port 443)
+                String cmd = "-analyzeduration 2147483647 -probesize 2147483647 -f webm -re -i " + pipePath + " " +
                              "-c:v libx264 -preset ultrafast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k " +
                              "-pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 " +
                              "-flvflags no_duration_filesize -f flv \"" + fullTarget + "\"";
 
+                pipeOutStream = new FileOutputStream(pipePath);
+
                 currentSession = FFmpegKit.executeAsync(cmd, session -> {
-                    Log.i(TAG, "FFmpeg Session Code: " + session.getReturnCode());
+                    Log.i(TAG, "FFmpeg Return Code: " + session.getReturnCode());
                     isLiveRunning = false;
                 });
 
-                pipeOutStream = new FileOutputStream(pipePath);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Live Facebook Terhubung!", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Menghubungkan ke Facebook...", Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "Broadcast error: ", e);
                 isLiveRunning = false;
@@ -322,8 +280,5 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         stopLiveBroadcast();
-        try {
-            if (wsServer != null) wsServer.stop();
-        } catch (Exception ignored) {}
     }
 }

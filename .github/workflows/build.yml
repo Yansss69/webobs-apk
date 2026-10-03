@@ -27,23 +27,20 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Make Gradlew Executable
-      run: chmod +x gradlew || true
-
     - name: Build Debug APK
       run: gradle assembleDebug --stacktrace
 
     - name: Package Release
       run: |
         mkdir -p package_output
-        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-v6.1-FIXED.apk
+        cp app/build/outputs/apk/debug/app-debug.apk package_output/WebOBS-LIVE-READY.apk
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v6.1-fixed-${{ github.run_number }}"
-        name: "WebOBS Studio v6.1 FIXED (Build #${{ github.run_number }})"
-        body: "Perbaikan Kompilasi Gradle: Menambahkan mavenCentral repository dan packaging options meta-inf."
-        files: package_output/WebOBS-v6.1-FIXED.apk
+        tag_name: "live-ready-${{ github.run_number }}"
+        name: "WebOBS Studio LIVE READY (Build #${{ github.run_number }})"
+        body: "Build Stabil Final: Live Streaming langsung ke Facebook tanpa Termux, Dual Audio Mixer, Fullscreen Media, Running Text stabil."
+        files: package_output/WebOBS-LIVE-READY.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
